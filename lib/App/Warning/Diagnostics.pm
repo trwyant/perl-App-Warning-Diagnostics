@@ -9,7 +9,7 @@ use Carp;
 use Config;
 use List::Util qw{ max };
 
-our $VERSION = '0.000_001';
+our $VERSION = '0.000_002';
 
 use constant COUNT_SET_BITS	=> '%32b*';	# Unpack template
 

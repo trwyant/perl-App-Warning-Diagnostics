@@ -1,2 +1,11 @@
+0.000_002	2021-10-11	T. R. Wyant
+    Add dependencies of script/warning-diagnostics since we _are_ in
+    fact App-Warning-Diagnostics, and since they are all core (as of
+    5.34.0) anyway.
+
+    Fix Perl::Critic problems in script/warning-diagnostics
+
+    Add script/warning-diagnostics to metadata for installation.
+
 0.000_001	2021-10-11	T. R. Wyant
     Initial commit.
