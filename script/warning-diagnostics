@@ -45,7 +45,6 @@ if ( defined( my $enc = pod_encoding() ) ) {
 }
 
 if ( $opt{render} ) {
-    require Pod::Text;
     my $psr = Pod::Text->new();
     open my $fh, '<', \$raw_pod
 	or die "Failed to open SCALAR reference: $!\n";
