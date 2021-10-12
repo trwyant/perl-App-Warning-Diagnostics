@@ -1,0 +1,129 @@
+#!/usr/bin/env perl
+
+use 5.010;
+
+use strict;
+use warnings;
+
+use App::Warning::Diagnostics;
+use Config;
+use Getopt::Long 2.33 qw{ :config auto_version };
+use Pod::Usage;
+
+our $VERSION = '0.000_001';
+
+use constant APP => 'App::Warning::Diagnostics';
+
+my %opt = (
+    pager	=> -t STDOUT,
+    render	=> 1,
+);
+
+GetOptions( \%opt,
+    qw{ pager! render! },
+    help => sub { pod2usage( { -verbose => 2 } ) },
+) or pod2usage( { -verbose => 0 } );
+
+defined( my $raw_pod = APP->warning_diagnostics( @ARGV ) )
+    or die "No warning categories specified\n";
+
+my $out;
+if ( $opt{pager} ) {
+    my $pager = $ENV{PAGER} || $Config{pager};
+    open $out, '|-', $pager
+	or warn "Failed to open pipe to $pager: $!\n";
+}
+
+$out //= \*STDOUT;
+
+if ( defined( my $enc = APP->pod_encoding() ) ) {
+    binmode $out, ":encoding($enc)"
+	or die "Unable to specify encoding $enc for output: $!\n";
+}
+
+if ( $opt{render} ) {
+    require Pod::Text;
+    my $psr = Pod::Text->new();
+    open my $fh, '<', \$raw_pod;
+    $psr->parse_from_file( $fh, $out );
+} else {
+    print { $out } $raw_pod;
+}
+
+__END__
+
+=head1 TITLE
+
+warning-diagnostics - List diagnostics enabled for specified warning categories
+
+=head1 SYNOPSIS
+
+ warning-diagnostics uninitialized
+ warning-diagnostics io no-unopened no-closed
+ warning-diagnostics --help
+ warning-diagnostics --version
+
+=head1 OPTIONS
+
+=head2 --help
+
+This option displays the documentation for this script. The script then
+exits.
+
+=head2 --pager
+
+If this Boolean option is asserted, the output is routed to a pager,
+either the pager specified by environment variable C<PAGER>, or to the
+pager specified in configuration variable C<pager> if the environment
+variable is not defined.
+
+The default is C<--pager> if C<STDOUT> is a terminal; otherwise it is
+C<--no-pager>.
+
+=head2 --render
+
+If this Boolean option is asserted the POD is rendered using
+L<Pod::Text|Pod::Text>. Otherwise the raw POD is output.
+
+The default is C<--render>, but you can disable this by specifying
+C<--no-render>.
+
+=head2 --version
+
+This option displays the version of this script. The script then exits.
+
+=head1 DETAILS
+
+This Perl script displays the diagnostics that are enabled by enabling
+the warnings specified on the command line. More than one warning
+category can be specified, and categories can be negated by prefixing
+C<'no'> or C<'no-'> to their names. Categories are combined in
+left-to-right order, so specifying arguments
+
+ io noclosed no-unopened
+
+specifies the diagnostics possible under
+
+ no warnings;
+ use warnings qw{ io };
+ no warnings qw{ closed unopened };
+
+=head1 AUTHOR
+
+Thomas R. Wyant, III F<wyant at cpan dot org>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2021 by Thomas R. Wyant, III
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl 5.10.0. For more details, see the full text
+of the licenses in the directory LICENSES.
+
+This program is distributed in the hope that it will be useful, but
+without any warranty; without even the implied warranty of
+merchantability or fitness for a particular purpose.
+
+=cut
+
+# ex: set textwidth=72 :
