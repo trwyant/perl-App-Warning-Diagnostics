@@ -146,10 +146,16 @@ sub requires {
     my ( $self, @extra ) = @_;
 ##  if ( ! $self->distribution() ) {
 ##  }
+    # NOTE that the following are all core as of Perl 5.10, with the
+    # caveat that VMS::Filespec is only core on VMS, but that is the
+    # only OS under which we use it.
     return +{
 	'Carp'		=> 0,
 	'Config'	=> 0,
+	'Getopt::Long'	=> 0,
 	'List::Util'	=> 0,
+	'Pod::Text'	=> 0,
+	'Pod::Usage'	=> 0,
 	( $^O eq 'VMS' ? ( 'VMS::Filespec' => 0 ) : () ),
 	constant	=> 0,
 	strict		=> 0,
