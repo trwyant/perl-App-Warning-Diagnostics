@@ -152,6 +152,7 @@ sub requires {
     return +{
 	'Carp'		=> 0,
 	'Config'	=> 0,
+	'Exporter'	=> 0,
 	'Getopt::Long'	=> 0,
 	'List::Util'	=> 0,
 	'Pod::Text'	=> 0,

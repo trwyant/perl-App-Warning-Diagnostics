@@ -5,26 +5,29 @@ use 5.010;
 use strict;
 use warnings;
 
-use App::Warning::Diagnostics;
+use App::Warning::Diagnostics
+    qw{ bash_completion pod_encoding warning_diagnostics };
 use Config;
 use Getopt::Long 2.33 qw{ :config auto_version };
+use Pod::Text;
 use Pod::Usage;
 
 our $VERSION = '0.000_002';
-
-use constant APP => 'App::Warning::Diagnostics';
 
 my %opt = (
     pager	=> -t STDOUT,
     render	=> 1,
 );
 
+my @lgl_opt = qw{ pager! render! };
+
 GetOptions( \%opt,
-    qw{ pager! render! },
+    @lgl_opt,
+    complete	=> sub { bash_completion( @lgl_opt ); exit; },
     help => sub { pod2usage( { -verbose => 2 } ) },
 ) or pod2usage( { -verbose => 0 } );
 
-defined( my $raw_pod = APP->warning_diagnostics( @ARGV ) )
+defined( my $raw_pod = warning_diagnostics( @ARGV ) )
     or die "No warning categories specified\n";
 
 my $out;
@@ -36,7 +39,7 @@ if ( $opt{pager} ) {
 
 $out //= \*STDOUT;
 
-if ( defined( my $enc = APP->pod_encoding() ) ) {
+if ( defined( my $enc = pod_encoding() ) ) {
     binmode $out, ":encoding($enc)"
 	or die "Unable to specify encoding $enc for output: $!\n";
 }
