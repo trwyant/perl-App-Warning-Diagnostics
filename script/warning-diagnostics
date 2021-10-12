@@ -30,7 +30,7 @@ defined( my $raw_pod = APP->warning_diagnostics( @ARGV ) )
 my $out;
 if ( $opt{pager} ) {
     my $pager = $ENV{PAGER} || $Config{pager};
-    open $out, '|-', $pager
+    open $out, '|-', $pager	## no critic (RequireBriefOpen)
 	or warn "Failed to open pipe to $pager: $!\n";
 }
 
@@ -44,8 +44,10 @@ if ( defined( my $enc = APP->pod_encoding() ) ) {
 if ( $opt{render} ) {
     require Pod::Text;
     my $psr = Pod::Text->new();
-    open my $fh, '<', \$raw_pod;
+    open my $fh, '<', \$raw_pod
+	or die "Failed to open SCALAR reference: $!\n";
     $psr->parse_from_file( $fh, $out );
+    close $fh;
 } else {
     print { $out } $raw_pod;
 }
