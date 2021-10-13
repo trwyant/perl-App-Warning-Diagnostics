@@ -16,7 +16,9 @@ our %EXPORT_TAGS = (
     all	=> \@EXPORT_OK,
 );
 
-use constant COMP_WORDBREAKS	=> qr/ ( \s+ | ["'\@><=;|&(:] ) /smx;	# )
+# NOTE that the default bash variable COMP_WORDBREAKS contains a colon
+# (':'), but I don't like the way this behaves.
+use constant COMP_WORDBREAKS	=> qr/ ( \s+ | ["'\@><=;|&(] ) /smx;	# )
 use constant COUNT_SET_BITS	=> '%32b*';	# Unpack template
 
 my $diagnostic;	# Array of diagnostics.
@@ -107,6 +109,9 @@ sub bash_completion {
 	}
 
     } else {
+	# FIXME I really think I would like to have this not return the
+	# whole possible match but only everything to the first ::
+	# beyond what we're matching.
 	push @rslt, grep {! index $_, $complete }
 	    map {; ( $_, "no$_", "no-$_" ) } keys %builtin;
     }

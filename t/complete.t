@@ -19,6 +19,9 @@ is complete( 'un' ), bits( 'un' ), q<Complete 'un'>;
 
 is complete( 'n' ), bits( 'n' ), q<Complete 'n'>;
 
+is complete( 'experimental::r' ), bits( 'experimental::r' ),
+    q<Complete 'experimental::r'>;
+
 done_testing;
 
 sub bits {
