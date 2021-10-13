@@ -108,12 +108,35 @@ sub bash_completion {
 	    }
 	}
 
+    } elsif ( $complete =~ m/ \w : \z /smx ) {
+	push @rslt, "${complete}:";
     } else {
 	# FIXME I really think I would like to have this not return the
 	# whole possible match but only everything to the first ::
 	# beyond what we're matching.
+
+=begin comment
+
 	push @rslt, grep {! index $_, $complete }
 	    map {; ( $_, "no$_", "no-$_" ) } keys %builtin;
+
+=end comment
+
+=cut
+
+	$complete =~ m/ \w : \z /smx
+	    and $complete .= ':';
+	my $re = qr/ \A ( \Q$complete\E [\w-]* (?: :: )? ) /smx;
+	my %found;
+	foreach my $cat ( keys %builtin ) {
+	    foreach my $item ( $cat, "no$cat", "no-$cat" ) {
+		$item =~ m/ $re /smx
+		    or next;
+		$found{$1}++
+		    and next;
+		push @rslt, "$1";
+	    }
+	}
     }
 
     @rslt = sort @rslt;
