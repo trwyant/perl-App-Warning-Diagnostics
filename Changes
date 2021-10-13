@@ -1,3 +1,9 @@
+0.000_003	2021-10-13	T. R. Wyant
+    Make public interface exportable. Static method calls are still
+    supported.
+    
+    Add bash_completion().
+
 0.000_002	2021-10-11	T. R. Wyant
     Add dependencies of script/warning-diagnostics since we _are_ in
     fact App-Warning-Diagnostics, and since they are all core (as of
