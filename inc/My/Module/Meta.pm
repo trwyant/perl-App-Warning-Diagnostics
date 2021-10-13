@@ -154,7 +154,6 @@ sub requires {
 	'Config'	=> 0,
 	'Exporter'	=> 0,
 	'Getopt::Long'	=> 0,
-	'List::Util'	=> 0,
 	'Pod::Text'	=> 0,
 	'Pod::Usage'	=> 0,
 	( $^O eq 'VMS' ? ( 'VMS::Filespec' => 0 ) : () ),

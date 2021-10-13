@@ -8,7 +8,6 @@ use warnings;
 use Carp;
 use Config;
 use Exporter qw{ import };
-use List::Util qw{ max };
 
 our $VERSION = '0.000_002';
 
@@ -20,17 +19,45 @@ our %EXPORT_TAGS = (
 use constant COMP_WORDBREAKS	=> qr/ ( \s+ | ["'\@><=;|&(:] ) /smx;	# )
 use constant COUNT_SET_BITS	=> '%32b*';	# Unpack template
 
-my $diagnostic;	# Hash of diagnostics by warning category
+my $diagnostic;	# Array of diagnostics.
 my $encoding;	# =encoding if any, undef if none
 my @primitive;	# Primitive (=non-compoosite) warning categories
+my %builtin;	# All builtin warnings (a guess)
 
-my $vector_len = 0;
-
-foreach ( sort keys %warnings::Bits ) {
-    my $bits = unpack COUNT_SET_BITS, $warnings::Bits{$_};
-    if ( $bits == 1 ) {
-	push @primitive, $_;
-	$vector_len = max( $vector_len, length $warnings::Bits{$_} );
+# The problem we need to solve is that we want to consider only built-in
+# warnings categories. But it is possible to add categories, and this
+# may already have been done by the time we get loaded. So we do the
+# best we can by:
+#
+# * Masking out bits that are not in $warnings::NONE. This does not get
+#   updated when categories are added, but because a category only takes
+#   two bits we will still accept zero to three added categories as a
+#   result of this check.
+# * Requiring categories occupying the last byte of $warnings::NONE
+#   to be all lower-case or colons. This is an heuristic based on the
+#   fact that added categories are qualified by the name space that
+#   added them. which is typically mixed-case. This also catches
+#   built-in primitives defined in the last byte, and built-in
+#   composites that include primitives defined in the last byte, but so
+#   far (as of Perl 5.34.0) those are all lower-case or colons.
+#
+# Only the first check is guaranteed, so we may still get as many as
+# three added categories, but the second check makes more than zero
+# unlikely. I hope.
+{
+    my $all = ~ $warnings::NONE;
+    my $suspicious = $warnings::NONE;
+    substr $suspicious, -1, 1, "\xFF";
+    foreach ( sort keys %warnings::Bits ) {
+	my $bit_mask = $warnings::Bits{$_};
+	my $set_bits = unpack COUNT_SET_BITS, $bit_mask & $all
+	    or next;
+	unpack COUNT_SET_BITS, $bit_mask & $suspicious
+	    and m/ [[:upper:]] /smx
+	    and next;
+	$builtin{$_} = $bit_mask;
+	1 == $set_bits
+	    and push @primitive, $_;
     }
 }
 
@@ -52,27 +79,46 @@ sub bash_completion {
     @words
 	or return;
 
-    local $_ = $words[-1];
+    my @rslt;
 
-    if ( my ( $prefix, $negate, $leader ) =
-	m/ \A ( --? ) ( (?: no-? )? ) ( .* ) /smx ) {
-	my $re = qr< (?: \A | [|] ) ( \Q$leader\E [^|=:!]* ) >smx;
-	foreach ( @option ) {
-	    m/ $re /smx
-		or next;
-	    my $output = "$prefix$negate$1";
-	    m/ = /smx
-		and $output .= '=';
-	    say $output;
+    my $complete = $words[-1];
+
+    # NOTE to the curious: I believe nothing below this point is
+    # specific to bash. If there is need for a readline_completion() the
+    # below code could be factored into a separate subroutine to be
+    # called by bash_completion(), readline_completion(), or potentially
+    # any other completion code.
+
+    if ( my ( $prefix ) = $complete =~ m/ \A ( --? ) /smx ) {
+
+	my @opts;
+	foreach my $o ( @option ) {
+	    my ( $names, $kind ) = split qr< ( [:=!] ) >smx, $o;
+	    $kind //= '';
+	    @opts = split qr< [|] >smx, $names;
+	    if ( '!' eq $kind ) {
+		push @rslt, grep { ! index $_, $complete }
+		    map {; ( "$prefix$_", "${prefix}no$_", "${prefix}no-$_" ) }
+		    @opts;
+	    } else {
+		push @rslt, grep { ! index $_, $complete }
+		    map { "$prefix$_" } @opts;
+	    }
 	}
-    } elsif ( my ( $neg, $name ) = m/ \A ( (?: no-? )? ) ( .* ) /smx ) {
-	my $re = qr< \A \Q$name\E >smx;
-	foreach ( sort keys %warnings::Bits ) {
-	    m/ $re /smx
-		or next;
-	    say "$neg$_";
-	}
+
+    } else {
+	push @rslt, grep {! index $_, $complete }
+	    map {; ( $_, "no$_", "no-$_" ) } keys %builtin;
     }
+
+    @rslt = sort @rslt;
+
+    wantarray
+	and return @rslt;
+    defined wantarray
+	and return \@rslt;
+
+    say for @rslt;
 
     return;
 }
@@ -91,13 +137,13 @@ sub warning_diagnostics {
 	and $warning[0]->isa( __PACKAGE__ )
 	and shift @warning;
 
-    my $mask = "\x00" x $vector_len;
+    my $mask = $warnings::NONE;
 
     foreach ( @warning ) {
-	if ( exists $warnings::Bits{$_} ) {
-	    $mask |= $warnings::Bits{$_};
-	} elsif ( m/ \A no-? ( .* ) /smx && exists $warnings::Bits{$1} ) {
-	    $mask &= ~ $warnings::Bits{$1};
+	if ( exists $builtin{$_} ) {
+	    $mask |= $builtin{$_};
+	} elsif ( m/ \A no-? ( .* ) /smx && exists $builtin{$1} ) {
+	    $mask &= ~ $builtin{$1};
 	} else {
 	    croak "Unknown warnings category $_";
 	}
@@ -108,13 +154,14 @@ sub warning_diagnostics {
 
     my %want_diag;
     foreach ( @primitive ) {
-	# NOTE: Can't just test $mask & $warnings::Bits{$_}, because
+	# NOTE: Can't just test $mask & $builtin{$_}, because
 	# they are non-empty strings, so the result will also be a
 	# non-empty string, which is always true whatever its contents.
-	if ( unpack COUNT_SET_BITS, $mask & $warnings::Bits{$_} ) {
+	if ( unpack COUNT_SET_BITS, $mask & $builtin{$_} ) {
 	    $want_diag{$_} = 1;
 	}
     }
+
 
     $diagnostic
 	or __read_pod();
@@ -128,6 +175,9 @@ sub warning_diagnostics {
     return $raw_pod;
 }
 
+sub __builtins {
+    return keys %builtin;
+}
 
 ## VERBATIM START diagnostics
 my $privlib = $Config{privlibexp};
@@ -241,6 +291,51 @@ or more simply
 This Perl module parses F<perldiag.pod> and returns the diagnostics
 associated with specified warnings categories.
 
+=head1 CAVEAT
+
+There are a number of reasons why the output of this module can never be
+considered authoritative, and why the module itself may break.
+
+=head2 Use of undocumented interfaces
+
+In order to find out what the warning categories are, this module
+consults C<%warnings::Bits>. This hash is also used by
+L<B::Deparse|B::Deparse> and L<Test::Warn|Test::Warn>, but is not
+documented.
+
+This module initialize the bit mask used to combine warning categories
+this module uses C<$warnings::NONE>. This is also used by
+L<B::Deparse|B::Deparse>, but is not documented.
+
+=head2 Custom warning categories
+
+Perl has the ability to create user-added warning categories, and there
+appears to be no way to positively distinguish these from Perl-native
+categories using the data present in L<warnings|warnings>.
+
+This should not be a problem for
+L<warning_diagnostics()|/warning_diagnostics>, but is a potential
+problem for L<bash_completion()|/bash_completion>.
+Heuristics are applied to try to mitigate this problem:
+
+=over
+
+=item * Items whose bit mask contains no set bits after a bitwise 'and'
+with the complement of C<$warnings::NONE> are not considered for
+completion. This works because the current (Perl 5.34.0) implementation
+of C<warnings|warnings> does not not extend
+C<$warnings::NONE>) when custom categories are added. But this
+may accept as many as three custom categories, since each uses two bits.
+
+=item * Mixed-case category names are not considered if their bit mask
+contains only bits corresponding to the last byte of C<$warnings::NONE>.
+This is because added categories are named after the name space that
+created them, which is typically mixed-case. The restriction of this
+check to only those categories defined in the last byte is pure paranoia
+on my part.
+
+=back
+
 =head1 SUBROUTINES
 
 This module supports the following subroutines. All are exportable, but
@@ -250,9 +345,27 @@ none is exported by default. They are also callable as static methods.
 
  print bash_completion( qw{ foo! bar=s } );
 
-This static method performs BASH completion. Its arguments are
+This static method performs C<bash> completion. Its arguments are
 L<Getopt::Long|Getopt::Long> option specs, which are used if the word to
-be completed starts with C<->. Output (if any) is printed to C<STDOUT>.
+be completed starts with C<->. The results are returned differently
+depending on the context in which it is called:
+
+=over
+
+=item * list context
+
+The results array is returned.
+
+=item * scalar context
+
+A reference to the results array is returned.
+
+=item * void context
+
+The results are printed to C<STDOUT>. This how C<bash> wants completions
+reported.
+
+=back
 
 =head2 pod_encoding
 
