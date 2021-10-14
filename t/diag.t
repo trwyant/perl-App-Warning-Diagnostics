@@ -76,8 +76,8 @@ can not read your mind.
 =back
 EOD
 
-is CLASS->warning_diagnostics( qw{ closed noclosed } ),
-    undef, 'closed noclosed';
+is CLASS->warning_diagnostics( qw{ closed no-closed } ),
+    undef, 'closed no-closed';
 
 done_testing;
 

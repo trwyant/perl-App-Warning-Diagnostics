@@ -19,13 +19,17 @@ my %opt = (
     render	=> 1,
 );
 
-my @lgl_opt = qw{ pager! render! };
+my @lgl_opt = qw{ complete pager! render! zsh! };
 
 GetOptions( \%opt,
     @lgl_opt,
-    complete	=> sub { bash_completion( @lgl_opt ); exit; },
     help => sub { pod2usage( { -verbose => 2 } ) },
 ) or pod2usage( { -verbose => 0 } );
+
+if ( $opt{complete} ) {
+    bash_completion( \%opt, @lgl_opt );
+    exit;
+}
 
 defined( my $raw_pod = warning_diagnostics( @ARGV ) )
     or die "No warning categories specified\n";
@@ -69,6 +73,25 @@ warning-diagnostics - List diagnostics enabled for specified warning categories
 
 =head1 OPTIONS
 
+=head2 --complete
+
+If this Boolean option is asserted, Bash-style completion is done on the
+arguments. The script then exits.
+
+The default is C<--no-complete>.
+
+For completion under Bash, specify
+
+ complete \
+   -C 'warning-diagnostics --complete' \
+   warning-diagnostics
+
+For completion under the zsh Bash completion subsystem, specify
+
+ complete \
+   -C 'warning-diagnostics --complete --zsh' \
+   warning-diagnostics
+
 =head2 --help
 
 This option displays the documentation for this script. The script then
@@ -95,6 +118,13 @@ C<--no-render>.
 =head2 --version
 
 This option displays the version of this script. The script then exits.
+
+=head2 --zsh
+
+This Boolean option specifies zsh-style output for Bash completion. That
+is, words containing C<':'> are displayed in their entirety. If negated,
+Bash-style output is done, and if the word being completed contains a
+colon only the part of the completion after the last colon is output.
 
 =head1 DETAILS
 

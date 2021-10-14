@@ -8,7 +8,7 @@ use warnings;
 use Test2::V0 -target => 'App::Warning::Diagnostics';
 
 is complete( '-', undef, qw{ foo=s bar! } ),
-    [ qw{ -bar -foo -no-bar -nobar } ],
+    [ qw{ --bar --foo --no-bar } ],
     q<Complete '-' with option spec foo=s bar!>;
 
 is complete( '--f', undef, qw{ foo=s bar! } ),
@@ -25,15 +25,26 @@ is complete( 'un' ), bits( 'un' ), q<Complete 'un'>;
 # is complete( 'n' ), bits( 'n' ), q<Complete 'n'>;
 
 is complete( 'experimental::r' ), bits( 'experimental::r' ),
-    q<Complete 'experimental::r'>;
+    q<Complete 'experimental::r', bash-style>;
+
+is complete( 'experimental::r', undef, { zsh => 1 } ),
+    bits( 'experimental::r', { zsh => 1 } ),
+    q<Complete 'experimental::r', zsh-style>;
 
 done_testing;
 
 sub bits {
-    my ( $pfx ) = @_;
-    return [ sort grep { ! index $_, $pfx }
-	map {; $_, "no$_", "no-$_" }
-	CLASS->__builtins() ];
+    my ( $pfx, $opt ) = @_;
+    $opt ||= {};
+    my @rslt = sort grep { ! index $_, $pfx }
+	map {; $_, "no-$_" }
+	CLASS->__builtins();
+    unless ( $opt->{zsh} ) {
+	foreach ( @rslt ) {
+	    s/ .* :: //smx;
+	}
+    }
+    return \@rslt;
 }
 
 sub complete {
