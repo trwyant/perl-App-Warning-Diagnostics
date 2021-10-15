@@ -1,3 +1,14 @@
+0.000_006	2021-10-14	T. R. Wyant
+    Move all completion code to script/warning-diagnostics
+
+    Drop 'no*' in favor of 'no-*' in warning categories and option
+    completions.
+
+    Recognize difference between completion behavior of bash and zsh's bash
+    emulator when the word contains a colon.
+
+    Option completions now complete -* as --*.
+
 0.000_005	2021-10-13	T. R. Wyant
     Completion now only offers thru next '::' rather than the full list.
 
@@ -7,7 +18,7 @@
 0.000_003	2021-10-13	T. R. Wyant
     Make public interface exportable. Static method calls are still
     supported.
-    
+
     Add bash_completion().
 
 0.000_002	2021-10-11	T. R. Wyant
