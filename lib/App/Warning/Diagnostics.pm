@@ -11,17 +11,12 @@ use Exporter qw{ import };
 
 our $VERSION = '0.000_005';
 
-our @EXPORT_OK = qw{ bash_completion pod_encoding warning_diagnostics };
+our @EXPORT_OK = qw{ builtins pod_encoding warning_diagnostics };
 our %EXPORT_TAGS = (
     all	=> \@EXPORT_OK,
 );
 
-# NOTE that the default bash variable COMP_WORDBREAKS contains a colon
-# (':'), but I don't like the way this behaves.
-use constant COMP_WORDBREAKS	=> qr/ ( \s+ | ["'\@><=;|&(] ) /smx;	# )
 use constant COUNT_SET_BITS	=> '%32b*';	# Unpack template
-
-use constant REF_HASH		=> ref {};
 
 my $diagnostic;	# Array of diagnostics.
 my $encoding;	# =encoding if any, undef if none
@@ -40,8 +35,8 @@ my %builtin;	# All builtin warnings (a guess)
 # * Requiring categories occupying the last byte of $warnings::NONE
 #   to be all lower-case or colons. This is an heuristic based on the
 #   fact that added categories are qualified by the name space that
-#   added them. which is typically mixed-case. This also catches
-#   built-in primitives defined in the last byte, and built-in
+#   added them. which is typically mixed-case. This also potentially
+#   catches built-in primitives defined in the last byte, and built-in
 #   composites that include primitives defined in the last byte, but so
 #   far (as of Perl 5.34.0) those are all lower-case or colons.
 #
@@ -65,96 +60,8 @@ my %builtin;	# All builtin warnings (a guess)
     }
 }
 
-sub bash_completion {
-    my @option = @_;
-
-    # Maybe called as static method.
-    @option
-	and not ref $option[0]
-	and $option[0]->isa( __PACKAGE__ )
-	and shift @option;
-
-    my $opt = REF_HASH eq ref $option[0] ? shift @option : {};
-
-    my $line = $ENV{COMP_LINE};
-    my $point = $ENV{COMP_POINT} // length $line;
-
-    my @words = split COMP_WORDBREAKS, substr $line, 0, $point;
-    $line =~ m/ @{[ COMP_WORDBREAKS ]} \z /smx
-	and push @words, '';
-
-    @words
-	or return;
-
-    my @rslt;
-
-    my $complete = $words[-1];
-
-    # NOTE to the curious: I believe nothing below this point is
-    # specific to bash. If there is need for a readline_completion() the
-    # below code could be factored into a separate subroutine to be
-    # called by bash_completion(), readline_completion(), or potentially
-    # any other completion code.
-    # NOTE except that zsh's bash completion emulation works differently
-    # than actual bash completion.
-
-    if ( my ( $prefix ) = $complete =~ m/ \A ( --? ) /smx ) {
-
-	$prefix = '--';
-
-	my @opts;
-	foreach my $o ( @option ) {
-	    my ( $names, $kind ) = split qr< ( [:=!] ) >smx, $o;
-	    $kind //= '';
-	    @opts = split qr< [|] >smx, $names;
-	    if ( '!' eq $kind ) {
-		push @rslt, grep { ! index $_, $complete }
-		    map {; ( "$prefix$_", "${prefix}no-$_" ) }
-		    @opts;
-	    } else {
-		push @rslt, grep { ! index $_, $complete }
-		    map { "$prefix$_" } @opts;
-	    }
-	}
-
-    } elsif ( $complete =~ m/ \w : \z /smx ) {
-	# FIXME zsh wants to put a space after this completion. I
-	# suppose that I could handle this by specifying
-	# -o nospace and then inserting the space myself.
-	push @rslt, "${complete}:";
-    } else {
-
-	$complete =~ m/ \w : \z /smx
-	    and $complete .= ':';
-	my $re = qr/ \A ( \Q$complete\E [\w-]* (?: :: )? ) /smx;
-	my %found;
-	foreach my $cat ( keys %builtin ) {
-	    foreach my $item ( $cat, "no-$cat" ) {
-		$item =~ m/ $re /smx
-		    or next;
-		$found{$1}++
-		    and next;
-		push @rslt, "$1";
-	    }
-	}
-    }
-
-    @rslt = sort @rslt;
-
-    if ( ! $opt->{zsh} && $complete =~ m/ :: /smx ) {
-	foreach ( @rslt ) {
-	    s/ .* :: //smx;
-	}
-    }
-
-    wantarray
-	and return @rslt;
-    defined wantarray
-	and return \@rslt;
-
-    say for @rslt;
-
-    return;
+sub builtins {
+    return keys %builtin;
 }
 
 sub pod_encoding {
@@ -207,10 +114,6 @@ sub warning_diagnostics {
     "=back\n";
 
     return $raw_pod;
-}
-
-sub __builtins {
-    return keys %builtin;
 }
 
 ## VERBATIM START diagnostics
@@ -349,8 +252,8 @@ categories using the data present in L<warnings|warnings>.
 
 This should not be a problem for
 L<warning_diagnostics()|/warning_diagnostics>, but is a potential
-problem for L<bash_completion()|/bash_completion>.
-Heuristics are applied to try to mitigate this problem:
+problem for L<builtins()|/builtins>.  Heuristics are applied to try to
+mitigate this problem:
 
 =over
 
@@ -375,57 +278,19 @@ on my part.
 This module supports the following subroutines. All are exportable, but
 none is exported by default. They are also callable as static methods.
 
-=head2 bash_completion
+=head2 builtins
 
- print bash_completion( qw{ foo! bar=s } );
+ say for sort builtins();
 
-This static method performs C<bash> completion. Its arguments are
-L<Getopt::Long|Getopt::Long> option specs, which are used if the word to
-be completed starts with C<->. The results are returned differently
-depending on the context in which it is called:
-
-=over
-
-=item * list context
-
-The results array is returned.
-
-=item * scalar context
-
-A reference to the results array is returned.
-
-=item * void context
-
-The results are printed to C<STDOUT>. This how C<bash> wants completions
-reported.
-
-=back
-
-Because Bash completion and zsh's Bash completion emulation work
-slightly differently, the first argument can optionally be a hash
-reference. Supported keys in this hash reference are:
-
-=over
-
-=item zsh
-
-If this value is true, output is compatible with the zsh Bash completion
-emulation. That is, if the word being completed contains a colon, the
-whole completion is still emitted.
-
-If this value is false, only the portion of the word after the last
-colon is emitted.
-
-=back
-
-See the POD for the F<warning-diagnostics> script for how to set this
-up.
+This subroutine returns an array of the names of built-in warning
+categories. See L<CAVEAT|/CAVEAT> above for a caution about the data
+returned by this subroutine.
 
 =head2 pod_encoding
 
  say 'Encoding: ', pod_encoding();
 
-This method returns the encoding of the POD if specified by the POD
+This subroutine returns the encoding of the POD if specified by the POD
 file; otherwise it returns C<undef>.
 
 =head2 warning_diagnostics

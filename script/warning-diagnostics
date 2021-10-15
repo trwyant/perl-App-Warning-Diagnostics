@@ -6,7 +6,7 @@ use strict;
 use warnings;
 
 use App::Warning::Diagnostics
-    qw{ bash_completion pod_encoding warning_diagnostics };
+    qw{ builtins pod_encoding warning_diagnostics };
 use Config;
 use Getopt::Long 2.33 qw{ :config auto_version };
 use Pod::Text;
@@ -19,7 +19,7 @@ my %opt = (
     render	=> 1,
 );
 
-my @lgl_opt = qw{ complete pager! render! zsh! };
+my @lgl_opt = qw{ complete|completion=s pager! render! };
 
 GetOptions( \%opt,
     @lgl_opt,
@@ -27,7 +27,9 @@ GetOptions( \%opt,
 ) or pod2usage( { -verbose => 0 } );
 
 if ( $opt{complete} ) {
-    bash_completion( \%opt, @lgl_opt );
+    my $code = __PACKAGE__->can( "complete_$opt{complete}" )
+	or die "Completion style '$opt{complete}' not defined\n";
+    $code->( @lgl_opt );
     exit;
 }
 
@@ -58,6 +60,109 @@ if ( $opt{render} ) {
     print { $out } $raw_pod;
 }
 
+# NOTE that the default bash variable COMP_WORDBREAKS contains a colon
+# (':'), but I don't like the way this behaves.
+use constant COMP_WORDBREAKS	=> qr/ ( \s+ | ["'\@><=;|&(] ) /smx;	# )
+
+sub complete_bash {
+    my @option = @_;
+    my @rslt = complete_zsh_bash( @option );
+
+    s/ .* :: (?= . ) //smx for @rslt;
+
+    {
+	my %uniq;
+	@rslt = grep { ! $uniq{$_}++ } @rslt;
+    }
+
+    say for @rslt;
+    return;
+}
+
+sub complete_zsh_bash {
+    my @option = @_;
+
+    my $line = $ENV{COMP_LINE};
+    my $point = $ENV{COMP_POINT} // length $line;
+
+    my @words = split COMP_WORDBREAKS, substr $line, 0, $point;
+    $line =~ m/ @{[ COMP_WORDBREAKS ]} \z /smx
+	and push @words, '';
+
+    @words
+	or return;
+
+    my @rslt;
+
+    my $complete = $words[-1];
+
+    # NOTE to the curious: I believe nothing below this point is
+    # specific to bash. If there is need for a readline_completion() the
+    # below code could be factored into a separate subroutine to be
+    # called by bash_completion(), readline_completion(), or potentially
+    # any other completion code.
+    # NOTE except that zsh's bash completion emulation works differently
+    # than actual bash completion.
+
+    if ( my ( $prefix ) = $complete =~ m/ \A ( --? ) /smx ) {
+
+	$prefix = '--';
+
+	my @opts;
+	foreach my $o ( @option ) {
+	    my ( $names, $kind ) = split qr< ( [:=!] ) >smx, $o;
+	    $kind //= '';
+	    @opts = split qr< [|] >smx, $names;
+	    if ( '!' eq $kind ) {
+		push @rslt, grep { ! index $_, $complete }
+		    map {; ( "$prefix$_", "${prefix}no-$_" ) }
+		    @opts;
+	    } else {
+		push @rslt, grep { ! index $_, $complete }
+		    map { "$prefix$_" } @opts;
+	    }
+	}
+
+    } else {
+
+	$complete =~ m/ \w : \z /smx
+	    and $complete .= ':';
+	my $re = qr/ \A ( \Q$complete\E [\w-]* (?: :: )? ) /smx;
+	my %found;
+	foreach my $cat ( builtins() ) {
+	    foreach my $item ( $cat, "no-$cat" ) {
+		$item =~ m/ $re /smx
+		    or next;
+		$found{$1}++
+		    and next;
+		push @rslt, "$1";
+	    }
+	}
+
+    }
+
+    # The zsh emulation of bash completion appears not to consider ':' a
+    # word separator. So if $SHELL is zsh we leave our results alone;
+    # otherwise we remove everything up to the last '::'.
+    if ( ( $ENV{SHELL} // '' ) !~ m< /zsh \z >smx &&
+	$complete =~ m/ :: /smx ) {
+	foreach ( @rslt ) {
+	    s/ .* :: //smx;
+	}
+	my %uniq;
+	@rslt = grep { ! $uniq{$_}++ } @rslt;
+    }
+
+    @rslt = sort @rslt;
+
+    defined wantarray
+	and return @rslt;
+
+    say for @rslt;
+
+    return;
+}
+
 __END__
 
 =head1 TITLE
@@ -75,22 +180,42 @@ warning-diagnostics - List diagnostics enabled for specified warning categories
 
 =head2 --complete
 
-If this Boolean option is asserted, Bash-style completion is done on the
-arguments. The script then exits.
+ --complete bash
+ --complete zsh_bash
 
-The default is C<--no-complete>.
+This option specifies that command completion be done in the specified
+style. The script then exits. Valid styles are:
 
-For completion under Bash, specify
+=over
+
+=item bash
+
+Bash completion
+
+=item zsh_bash
+
+Zsh emulation of Bash completion.
+
+=back
+
+For completion under Bash specify
 
  complete \
-   -C 'warning-diagnostics --complete' \
+   -C 'warning-diagnostics --complete bash' \
    warning-diagnostics
 
-For completion under the zsh Bash completion subsystem, specify
+in F<~/.bashrc>. For completion under zsh Bash completion emulation
+specify
 
  complete \
-   -C 'warning-diagnostics --complete --zsh' \
+   -C 'warning-diagnostics --complete zsh_bash' \
    warning-diagnostics
+
+in F<~/.zshrc>.
+
+=head2 --completion
+
+This is just an alias for L<--complete|/--complete>.
 
 =head2 --help
 

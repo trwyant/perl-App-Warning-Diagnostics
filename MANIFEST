@@ -12,7 +12,6 @@ META.yml
 README
 script/warning-diagnostics
 t/basic.t
-t/complete.t
 t/data/perldiag.pod
 t/diag.t
 xt/author/changes.t
