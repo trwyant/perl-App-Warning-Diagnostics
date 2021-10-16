@@ -185,8 +185,10 @@ my @possible_builtins = qw{
 
 ## END REPLACEMENT
 
-
-
+# The reason for going through this loop is that we may be running under
+# an earlier version of Perl than the one that generated the above, so
+# we need to figure out which of the above list are actually recognized
+# by warnings.pm
 
 foreach ( @possible_builtins ) {
     my $bit_mask = $warnings::Bits{$_}
@@ -246,13 +248,15 @@ sub warning_diagnostics {
 
     my @pod =
 	map { $_->[1] }
-	grep { $want_diag{$_->[0]} } @{ $diagnostic };
+	grep { _want_diag( \%want_diag, $_ ) } @{ $diagnostic };
 
     wantarray
 	and return @pod;
 
     return join '', "=over\n\n", @pod, "=back\n";
 }
+
+# The following is verbatim from diagnostics.pm
 
 ## VERBATIM START diagnostics
 my $privlib = $Config{privlibexp};
@@ -306,15 +310,19 @@ sub __read_pod {
 		last;
 	    }
 	} elsif ( m/ \A =item \b /smx ) {
+
 	    if ( 1 == $nest ) {
 		my $leader = $_;
 		while ( <$fh> ) {
 		    $leader .= $_;
 		    m/ \S /smx
 			or next;
-		    if ( m/ \A \( [[:upper:]] \s+ ( [\w:]+ ) \) /smx ) {
+		    m/ ^ = /smx
+			and next;
+		    if ( m/ \A \( [[:upper:]] \s+ ( [\w:, ]+ ) \) /smx ) {
 			$_ = $leader;
-			push @{ $diagnostic ||= [] }, [ "$1", $leader ];
+			my @category = split qr< \s* , \s* >smx, $1;
+			push @{ $diagnostic ||= [] }, [ \@category, $leader ];
 			$raw_pod = \( $diagnostic->[-1][1] );
 			$pod_handler = $accumulate_pod;
 		    } else {
@@ -344,6 +352,15 @@ sub __read_pod {
     return;
 }
 
+sub _want_diag {
+    my ( $want, $diag ) = @_;
+    foreach my $cat ( @{ $diag->[0] } ) {
+	$want->{$cat}
+	    and return 1;
+    }
+    return 0;
+}
+
 1;
 
 __END__
@@ -371,14 +388,46 @@ associated with specified warnings categories.
 There are a number of reasons why the output of this module can never be
 considered authoritative, and why the module itself may break.
 
+=head2 Reliance on formatting of F<perldiag.pod>
+
+This module relies on the formatting of F<perldiag.pod> more heavily
+than the core L<diagnostics|diagnostics> module does. The following
+assumptions are known to have been made:
+
+=over
+
+=item * Diagnostics are defined by first-level =item paragraphs
+
+Consecutive C<=item> paragraphs are supported. This assumption is also
+made by the L<diagnostics|diagnostics> module.
+
+=item * The first text paragraph after the =item specifies warning categories
+
+Specifically, this paragraph is assumed to begin with parenthesized text
+consisting of a single letter defining the warning severity and a list
+of warning categories related to that diagnostic, delimited by commas
+and optional spaces.
+
+This assumption is B<not> made by the L<diagnostics|diagnostics> module.
+
+A real-life example of this formatting (as of Perl 5.34.0) is
+
+ =item Use of tainted arguments in %s is deprecated
+
+ (W taint, deprecated) ...
+
+Such warnings are assumed to be enabled if either of the specified
+warnings is enabled.
+
+=back
+
 =head2 Use of undocumented interfaces
 
-In order to find out what the warning categories are, this module
-consults C<%warnings::Bits>. This hash is also used by
-L<B::Deparse|B::Deparse> and L<Test::Warn|Test::Warn>, but is not
-documented.
+This module uses the contents of C<%warnings::Bits> to combine warning
+categories.  This is also used by L<B::Deparse|B::Deparse> and
+L<Test::Warn|Test::Warn>, but is not documented.
 
-This module initialize the bit mask used to combine warning categories
+This module initializes the bit mask used to combine warning categories
 this module uses C<$warnings::NONE>. This is also used by
 L<B::Deparse|B::Deparse>, but is not documented.
 
@@ -390,26 +439,13 @@ categories using the data present in L<warnings|warnings>.
 
 This should not be a problem for
 L<warning_diagnostics()|/warning_diagnostics>, but is a potential
-problem for L<builtins()|/builtins>.  Heuristics are applied to try to
-mitigate this problem:
-
-=over
-
-=item * Items whose bit mask contains no set bits after a bitwise 'and'
-with the complement of C<$warnings::NONE> are not considered for
-completion. This works because the current (Perl 5.34.0) implementation
-of C<warnings|warnings> does not not extend
-C<$warnings::NONE>) when custom categories are added. But this
-may accept as many as three custom categories, since each uses two bits.
-
-=item * Mixed-case category names are not considered if their bit mask
-contains only bits corresponding to the last byte of C<$warnings::NONE>.
-This is because added categories are named after the name space that
-created them, which is typically mixed-case. The restriction of this
-check to only those categories defined in the last byte is pure paranoia
-on my part.
-
-=back
+problem for L<builtins()|/builtins>. Various heuristics against
+C<%warnings::Bits> were tried to mitigate this problem, but found to be
+unsatisfactory. The current solution is to hard-code the list, and
+maintain it using external code (see F<tools/extract-warnings>. This
+means that new categories will not be recognized until I get around to
+updating and releasing this module. This implementation will change if
+something better comes along.
 
 =head1 SUBROUTINES
 
@@ -455,7 +491,7 @@ Group categories such as C<'io'> will be expanded. You can negate a
 category by prefixing C<'no-'> to its name. Categories are
 combined in left-to-right order, so
 
- APP->warning_diagnostics( qw{ io no-closed no-unopened } )
+ warning_diagnostics( qw{ io no-closed no-unopened } )
 
 selects all diagnostics generated by
 
