@@ -1,3 +1,16 @@
+0.000_007	2021-10-15	T. R. Wyant
+    Use hard-coded list of built-in warning categories.  There just
+    turned out to be too much ad-hocery involved in deriving it from the
+    %warnings::Bits hash keys, due to the fact that warnings::register
+    modifies this hash, and there is no way to guarantee access to a
+    pristine copy of the hash. I considered parsing warnings.pm in
+    App::Warning::Diagnostics when it was loaded, but that felt fragile.
+    Better to do the ad-hocery once for all.
+
+    Made warning_diagnostics() return the individual selected diagnostics in
+    list context, basically to make counting them easier via the Saturn
+    operator =()=.
+
 0.000_006	2021-10-14	T. R. Wyant
     Move all completion code to script/warning-diagnostics
 
