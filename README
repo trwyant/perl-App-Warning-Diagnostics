@@ -2,7 +2,8 @@ App-Warning-Diagnostics is Copyright (C) 2021 by Thomas R. Wyant, III
 
 DESCRIPTION
 
-<<< replace boilerplate >>>
+This Perl module parses perldiag.pod and returns the diagnostics
+associated with specified warnings categories.
 
 INSTALLATION
 
