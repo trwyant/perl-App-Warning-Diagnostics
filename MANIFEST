@@ -1,5 +1,6 @@
 Build.PL
 Changes
+eg/count-diagnostics
 inc/My/Module/Build.pm
 inc/My/Module/Meta.pm
 lib/App/Warning/Diagnostics.pm
@@ -11,6 +12,7 @@ META.json
 META.yml
 README
 script/warning-diagnostics
+tools/extract-warnings
 t/basic.t
 t/data/perldiag.pod
 t/diag.t

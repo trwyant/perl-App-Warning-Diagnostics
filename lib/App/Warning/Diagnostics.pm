@@ -25,8 +25,11 @@ my %builtin;	# All builtin warnings (a guess)
 
 # The problem we need to solve is that we want to consider only built-in
 # warnings categories. But it is possible to add categories, and this
-# may already have been done by the time we get loaded. So we do the
-# best we can by:
+# may already have been done by the time we get loaded.
+#
+=begin comment
+
+# So we do the best we can by:
 #
 # * Masking out bits that are not in $warnings::NONE. This does not get
 #   updated when categories are added, but because a category only takes
@@ -39,11 +42,15 @@ my %builtin;	# All builtin warnings (a guess)
 #   catches built-in primitives defined in the last byte, and built-in
 #   composites that include primitives defined in the last byte, but so
 #   far (as of Perl 5.34.0) those are all lower-case or colons.
+# * Brute-force elimination of categories occupying the last byte that
+#   are not amenable to any of the above.
 #
 # Only the first check is guaranteed, so we may still get as many as
 # three added categories, but the second check makes more than zero
-# unlikely. I hope.
+# unlikely. I hope. But my hope is cheated because constant.pm calls
+# warnings::register.
 {
+    my %brute_force = map { $_ => 1 } qw{ constant };
     my $all = ~ $warnings::NONE;
     my $suspicious = $warnings::NONE;
     substr $suspicious, -1, 1, "\xFF";
@@ -52,13 +59,143 @@ my %builtin;	# All builtin warnings (a guess)
 	my $set_bits = unpack COUNT_SET_BITS, $bit_mask & $all
 	    or next;
 	unpack COUNT_SET_BITS, $bit_mask & $suspicious
-	    and m/ [[:upper:]] /smx
+	    and ( m/ [[:upper:]] /smx || $brute_force{$_} )
 	    and next;
 	$builtin{$_} = $bit_mask;
 	1 == $set_bits
 	    and push @primitive, $_;
     }
 }
+
+# The following is really brute-force, but working directly with (say)
+# %warnings::Bits involved so much ad-hocery to strain out stuff that
+# got added by warnings::register that eventually I just gave up. If
+# this does not work I will probably extract something like it to a
+# tools/ script, hand-groom the output, and slap that into this module.
+{
+    local $/ = undef;	# Slurp mode
+    open my $fh, '<', $INC{'warnings.pm'}
+	or die "Unable to open warnings.pm: $!\n";
+    my $source = <$fh>;
+    close $fh;
+    # (
+    $source =~ m/ ( ^ \Qour %Bits = (\E [^)]+ \); $ ) /smx
+	or die "Unable to find definition of %Offsets hash\n";
+    my $hash = $1;
+
+    while ( $hash =~ m/ ' ( [\w:]+ ) ' \s* => \s* "[^"]+" \s* , /smxg ) {
+	my $bit_mask = $warnings::Bits{$1};
+	$builtin{$1} = $bit_mask;
+	1 == unpack COUNT_SET_BITS, $bit_mask
+	    and push @primitive, "$1";
+    }
+}
+
+=end comment
+
+=cut
+
+# The following is also brute-force, but exerts the force just once to
+# produce the following table. The drawback of this implementation is
+# that the addition of a warning category requires re-release of this
+# module. Sigh.
+
+## BEGIN REPLACEMENT
+
+# The following code is replaced by tools/extract-warnings. Do not edit.
+# Generated 2021-10-15 by Perl v5.35.4 using warnings 1.54
+
+my @possible_builtins = qw{
+    all
+    ambiguous
+    bareword
+    closed
+    closure
+    debugging
+    deprecated
+    digit
+    exec
+    exiting
+    experimental
+    experimental::alpha_assertions
+    experimental::bitwise
+    experimental::const_attr
+    experimental::declared_refs
+    experimental::defer
+    experimental::isa
+    experimental::lexical_subs
+    experimental::postderef
+    experimental::private_use
+    experimental::re_strict
+    experimental::refaliasing
+    experimental::regex_sets
+    experimental::script_run
+    experimental::signatures
+    experimental::smartmatch
+    experimental::try
+    experimental::uniprop_wildcards
+    experimental::vlb
+    glob
+    illegalproto
+    imprecision
+    inplace
+    internal
+    io
+    layer
+    locale
+    malloc
+    misc
+    missing
+    newline
+    non_unicode
+    nonchar
+    numeric
+    once
+    overflow
+    pack
+    parenthesis
+    pipe
+    portable
+    precedence
+    printf
+    prototype
+    qw
+    recursion
+    redefine
+    redundant
+    regexp
+    reserved
+    semicolon
+    severe
+    shadow
+    signal
+    substr
+    surrogate
+    syntax
+    syscalls
+    taint
+    threads
+    uninitialized
+    unopened
+    unpack
+    untie
+    utf8
+    void
+};
+
+## END REPLACEMENT
+
+
+
+
+foreach ( @possible_builtins ) {
+    my $bit_mask = $warnings::Bits{$_}
+	or next;
+    $builtin{$_} = $bit_mask;
+    1 == unpack COUNT_SET_BITS, $bit_mask
+	and push @primitive, "$_";
+}
+
 
 sub builtins {
     return keys %builtin;
@@ -91,7 +228,7 @@ sub warning_diagnostics {
     }
 
     unpack COUNT_SET_BITS, $mask
-	or return undef;	## no critic (ProhibitExplicitReturnUndef)
+	or return;
 
     my %want_diag;
     foreach ( @primitive ) {
@@ -107,13 +244,14 @@ sub warning_diagnostics {
     $diagnostic
 	or __read_pod();
 
-    my $raw_pod = join '', "=over\n\n", (
+    my @pod =
 	map { $_->[1] }
-	grep { $want_diag{$_->[0]} } @{ $diagnostic }
-    ),
-    "=back\n";
+	grep { $want_diag{$_->[0]} } @{ $diagnostic };
 
-    return $raw_pod;
+    wantarray
+	and return @pod;
+
+    return join '', "=over\n\n", @pod, "=back\n";
 }
 
 ## VERBATIM START diagnostics
@@ -299,10 +437,18 @@ file; otherwise it returns C<undef>.
      qw{ uninitialized } );
 
 Given warning categories as specified by L<warnings|warnings>, returns
-the raw POD for the diagnostics enabled by these warning categories. The
-output will be a string containing one or more C<=item> paragraphs
-enclosed in C<'=over'> and C<'=back'>, or C<undef> if no categories are
-specified.
+the raw POD for the diagnostics enabled by these warning categories. If
+called in scalar context, it returns a string containing one or more
+C<=item> paragraphs enclosed in C<'=over'> and C<'=back'>, or C<undef>
+if no categories are specified. If called in list context it returns the
+individual C<=item> paragraphs, or nothing if no categories were
+specified or no diagnostics were found.
+
+Note that if you are interested in knowing how many diagnostics a
+particular category or set of categories produces you can get it by
+using the Saturn operator:
+
+ my $count =()= warning_diagnostics( $category );
 
 Categories are specified by name, and more than one can be specified.
 Group categories such as C<'io'> will be expanded. You can negate a

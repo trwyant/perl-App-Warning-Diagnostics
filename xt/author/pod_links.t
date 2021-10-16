@@ -15,7 +15,7 @@ eval {
 Test::Pod::LinkCheck::Lite->new(
     ignore_url	=> qr< \A https://github\.com \b >smx,
 )->all_pod_files_ok(
-    qw{ blib },
+    qw{ blib eg script tools },
 );
 
 done_testing;
