@@ -1,3 +1,11 @@
+0.000_008	2021-10-16	T. R. Wyant
+    Enhance parsing of perldiag.pod to pick up more diagnostics.
+
+    Bring documentation into line with current code.
+
+    Add description to README.
+    Connect to GitHub.
+
 0.000_007	2021-10-15	T. R. Wyant
     Use hard-coded list of built-in warning categories.  There just
     turned out to be too much ad-hocery involved in deriving it from the
