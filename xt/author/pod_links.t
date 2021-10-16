@@ -13,7 +13,7 @@ eval {
 } or plan skip_all => 'Unable to load Test::Pod::LinkCheck::Lite';
 
 Test::Pod::LinkCheck::Lite->new(
-    ignore_url	=> qr< \A https://github\.com \b >smx,
+    # ignore_url	=> qr< \A https://github\.com \b >smx,
 )->all_pod_files_ok(
     qw{ blib eg script tools },
 );
