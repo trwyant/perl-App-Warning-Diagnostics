@@ -29,7 +29,7 @@ GetOptions( \%opt,
 if ( $opt{complete} ) {
     my $code = __PACKAGE__->can( "complete_$opt{complete}" )
 	or die "Completion style '$opt{complete}' not defined\n";
-    $code->( @lgl_opt );
+    $code->( @lgl_opt, qw{ help version } );
     exit;
 }
 
@@ -104,24 +104,9 @@ sub complete_zsh_bash {
     # NOTE except that zsh's bash completion emulation works differently
     # than actual bash completion.
 
-    if ( my ( $prefix ) = $complete =~ m/ \A ( --? ) /smx ) {
+    if ( $complete =~ m/ \A --? /smx ) {
 
-	$prefix = '--';
-
-	my @opts;
-	foreach my $o ( @option ) {
-	    my ( $names, $kind ) = split qr< ( [:=!] ) >smx, $o;
-	    $kind //= '';
-	    @opts = split qr< [|] >smx, $names;
-	    if ( '!' eq $kind ) {
-		push @rslt, grep { ! index $_, $complete }
-		    map {; ( "$prefix$_", "${prefix}no-$_" ) }
-		    @opts;
-	    } else {
-		push @rslt, grep { ! index $_, $complete }
-		    map { "$prefix$_" } @opts;
-	    }
-	}
+	push @rslt, _complete_options( $complete, @option );
 
     } else {
 
@@ -139,18 +124,9 @@ sub complete_zsh_bash {
 	    }
 	}
 
-    }
+	'' eq $complete
+	    and push @rslt, _complete_options( $complete, @option );
 
-    # The zsh emulation of bash completion appears not to consider ':' a
-    # word separator. So if $SHELL is zsh we leave our results alone;
-    # otherwise we remove everything up to the last '::'.
-    if ( ( $ENV{SHELL} // '' ) !~ m< /zsh \z >smx &&
-	$complete =~ m/ :: /smx ) {
-	foreach ( @rslt ) {
-	    s/ .* :: //smx;
-	}
-	my %uniq;
-	@rslt = grep { ! $uniq{$_}++ } @rslt;
     }
 
     @rslt = sort @rslt;
@@ -161,6 +137,30 @@ sub complete_zsh_bash {
     say for @rslt;
 
     return;
+}
+
+sub _complete_options {
+    my ( $complete, @option ) = @_;
+
+    my $prefix = '--';
+
+    my @rslt;
+
+    foreach my $o ( @option ) {
+	my ( $names, $kind ) = split qr< ( [:=!] ) >smx, $o;
+	$kind //= '';
+	my @opts = split qr< [|] >smx, $names;
+	if ( '!' eq $kind ) {
+	    push @rslt, grep { ! index $_, $complete }
+		map {; ( "$prefix$_", "${prefix}no-$_" ) }
+		@opts;
+	} else {
+	    push @rslt, grep { ! index $_, $complete }
+		map { "$prefix$_" } @opts;
+	}
+    }
+
+    return @rslt;
 }
 
 __END__
@@ -243,13 +243,6 @@ C<--no-render>.
 =head2 --version
 
 This option displays the version of this script. The script then exits.
-
-=head2 --zsh
-
-This Boolean option specifies zsh-style output for Bash completion. That
-is, words containing C<':'> are displayed in their entirety. If negated,
-Bash-style output is done, and if the word being completed contains a
-colon only the part of the completion after the last colon is output.
 
 =head1 DETAILS
 
