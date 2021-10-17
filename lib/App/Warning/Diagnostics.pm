@@ -9,7 +9,7 @@ use Carp;
 use Config;
 use Exporter qw{ import };
 
-our $VERSION = '0.000_008';
+our $VERSION = '0.000_009';
 
 our @EXPORT_OK = qw{ builtins pod_encoding warning_diagnostics };
 our %EXPORT_TAGS = (

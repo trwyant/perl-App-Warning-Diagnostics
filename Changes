@@ -1,3 +1,9 @@
+0.000_009	2021-10-17	T. R. Wyant
+    Improve recognition of multi-category diagnostics.  It seems we can
+    have '(S non_unicode portable)' as well as '(W taint deprecated)'.
+
+    Work on documentation.
+
 0.000_008	2021-10-16	T. R. Wyant
     Enhance parsing of perldiag.pod to pick up more diagnostics.
 
