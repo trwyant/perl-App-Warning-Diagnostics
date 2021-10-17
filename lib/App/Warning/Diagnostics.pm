@@ -321,7 +321,7 @@ sub __read_pod {
 			and next;
 		    if ( m/ \A \( [[:upper:]] \s+ ( [\w:, ]+ ) \) /smx ) {
 			$_ = $leader;
-			my @category = split qr< \s* , \s* >smx, $1;
+			my @category = split qr< \s* , \s* | \s+ >smx, $1;
 			push @{ $diagnostic ||= [] }, [ \@category, $leader ];
 			$raw_pod = \( $diagnostic->[-1][1] );
 			$pod_handler = $accumulate_pod;
@@ -405,15 +405,21 @@ made by the L<diagnostics|diagnostics> module.
 
 Specifically, this paragraph is assumed to begin with parenthesized text
 consisting of a single letter defining the warning severity and a list
-of warning categories related to that diagnostic, delimited by commas
-and optional spaces.
+of warning categories related to that diagnostic, delimited by spaces or
+by commas and optional spaces.
 
 This assumption is B<not> made by the L<diagnostics|diagnostics> module.
 
-A real-life example of this formatting (as of Perl 5.34.0) is
+Real-life examples of this formatting (as of Perl 5.34.0) are:
+
+ =item Code point 0x%X is not Unicode, and not portable
+ 
+ (S non_unicode portable) ...
+
+and
 
  =item Use of tainted arguments in %s is deprecated
-
+ 
  (W taint, deprecated) ...
 
 Such warnings are assumed to be enabled if either of the specified
@@ -503,9 +509,12 @@ If you specify an unknown warnings category an exception will be thrown.
 Be aware that what the legal categories are depends on the version of
 Perl under which you are running.
 
-B<Note> that not all the C<experimental::> warnings correspond to
-diagnostics in L<perldiag|perldiag>. I have no idea whether this is
-intentional or an oversight.
+B<Note> that C<experimental::*> warnings tend to be removed from
+F<perldiag.pod> once the feature becomes no longer experimental, though
+the warnings categories themselves are retained for backward
+compatibility. Such categories will return no diagnostics. This looks
+like an empty C<=over/=back> if in scalar context, but an empty list in
+list context.
 
 =head1 SEE ALSO
 
