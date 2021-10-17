@@ -18,7 +18,7 @@ sub new {
 }
 
 sub abstract {
-    return 'List diagnostics enabled for specified warning categories';
+    return 'List diagnostics enabled by specified warning categories';
 }
 
 sub add_to_cleanup {
