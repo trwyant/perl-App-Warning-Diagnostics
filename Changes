@@ -1,3 +1,6 @@
+0.000_010	2021-10-18	T. R. Wyant
+    Clean up script/warning-diagnostics completion code.
+
 0.000_009	2021-10-17	T. R. Wyant
     Improve recognition of multi-category diagnostics.  It seems we can
     have '(S non_unicode portable)' as well as '(W taint deprecated)'.
