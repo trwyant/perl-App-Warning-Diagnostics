@@ -103,7 +103,7 @@ my %builtin;	# All builtin warnings (a guess)
 ## BEGIN REPLACEMENT
 
 # The following code is replaced by tools/extract-warnings. Do not edit.
-# Generated 2021-10-15 by Perl v5.35.4 using warnings 1.54
+# Generated 2021-10-22 by Perl v5.35.5 using warnings 1.55
 
 my @possible_builtins = qw{
     all
@@ -122,6 +122,7 @@ my @possible_builtins = qw{
     experimental::const_attr
     experimental::declared_refs
     experimental::defer
+    experimental::for_list
     experimental::isa
     experimental::lexical_subs
     experimental::postderef
@@ -184,6 +185,7 @@ my @possible_builtins = qw{
 };
 
 ## END REPLACEMENT
+
 
 # The reason for going through this loop is that we may be running under
 # an earlier version of Perl than the one that generated the above, so
