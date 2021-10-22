@@ -1,3 +1,6 @@
+0.000_011	2021-10-22	T. R. Wyant
+    Perl 5.35.5 added warning experimental::for_list.
+
 0.000_010	2021-10-18	T. R. Wyant
     Clean up script/warning-diagnostics completion code.
 
