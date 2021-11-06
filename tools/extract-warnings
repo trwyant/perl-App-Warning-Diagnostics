@@ -16,7 +16,14 @@ GetOptions( \%opt,
     help => sub { pod2usage( { -verbose => 2 } ) },
 ) or pod2usage( { -verbose => 0 } );
 
-my @possible_builtins;
+# We initialize with warnings that have been removed
+my %possible_builtins = map { $_ => 1 }
+    'chmod',				# Removed in 5.8
+    'experimental::autoderef',		# Removed in 5.24
+    'experimental::lexical_topic',	# Removed in 5.24
+    'umask',				# Removed in 5.8
+    'y2k',				# Removed in 5.10
+    ;
 
 {
     local $/ = undef;	# Slurp mode
@@ -30,7 +37,7 @@ my @possible_builtins;
     my $hash = $1;
 
     while ( $hash =~ m/ ' ( [\w:]+ ) ' \s* => \s* "[^"]+" \s* , /smxg ) {
-	push @possible_builtins, "$1";
+	$possible_builtins{$1} = 1;
     }
 }
 
@@ -46,7 +53,7 @@ my $replacement = <<"EOD";
 my \@possible_builtins = qw{
 EOD
 
-foreach ( sort @possible_builtins ) {
+foreach ( sort keys %possible_builtins ) {
     $replacement .= "    $_\n";
 }
 
@@ -109,6 +116,9 @@ This option displays the version of this script. The script then exits.
 This Perl code extracts the warning categories from F<warnings.pm> and
 inserts them into F<lib/App/Warning/Diagnostics.pm>. It should be run
 under the highest version of Perl you can get your hands on.
+
+The warnings found in F<warnings.pm> are supplemented with warnings that
+have been removed, for the benefit of older Perls.
 
 This is an incredible kluge, but there appears to be no way to extract
 the built-in warning categories from F<warnings.pm>. Oh, there are

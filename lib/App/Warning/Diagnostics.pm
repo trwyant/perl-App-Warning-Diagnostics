@@ -104,12 +104,13 @@ my %builtin;	# All builtin warnings (a guess)
 ## BEGIN REPLACEMENT
 
 # The following code is replaced by tools/extract-warnings. Do not edit.
-# Generated 2021-10-22 by Perl v5.35.5 using warnings 1.55
+# Generated 2021-11-06 by Perl v5.35.5 using warnings 1.55
 
 my @possible_builtins = qw{
     all
     ambiguous
     bareword
+    chmod
     closed
     closure
     debugging
@@ -119,6 +120,7 @@ my @possible_builtins = qw{
     exiting
     experimental
     experimental::alpha_assertions
+    experimental::autoderef
     experimental::bitwise
     experimental::const_attr
     experimental::declared_refs
@@ -126,6 +128,7 @@ my @possible_builtins = qw{
     experimental::for_list
     experimental::isa
     experimental::lexical_subs
+    experimental::lexical_topic
     experimental::postderef
     experimental::private_use
     experimental::re_strict
@@ -177,15 +180,18 @@ my @possible_builtins = qw{
     syscalls
     taint
     threads
+    umask
     uninitialized
     unopened
     unpack
     untie
     utf8
     void
+    y2k
 };
 
 ## END REPLACEMENT
+
 
 
 # The reason for going through this loop is that we may be running under
