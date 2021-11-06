@@ -1,3 +1,11 @@
+0.000_012	2021-11-06	T. R. Wyant
+    Add removed warnings to canned list.
+
+    Back-port to Perl 5.6, since that is when the warnings module was
+    introduced.
+
+    Convert to Test::More.
+
 0.000_011	2021-10-22	T. R. Wyant
     Perl 5.35.5 added warning experimental::for_list.
 

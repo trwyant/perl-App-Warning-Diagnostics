@@ -10,7 +10,7 @@ use Config;
 
 use base qw{ Exporter };	# Because of use 5.006.
 
-our $VERSION = '0.000_011';
+our $VERSION = '0.000_012';
 
 our @EXPORT_OK = qw{ builtins pod_encoding warning_diagnostics };
 our %EXPORT_TAGS = (

@@ -9,7 +9,7 @@ use App::Warning::Diagnostics qw{ builtins warning_diagnostics };
 use Getopt::Long 2.33 qw{ :config auto_version };
 use Pod::Usage;
 
-our $VERSION = '0.000_011';
+our $VERSION = '0.000_012';
 
 my %opt;
 
