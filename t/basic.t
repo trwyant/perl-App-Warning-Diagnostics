@@ -3,14 +3,14 @@ package main;
 use strict;
 use warnings;
 
-use Test2::V0;
-use Test2::Plugin::BailOnFail;
-use Test2::Tools::LoadModule;
+use Test::More;
 
-load_module_ok 'App::Warning::Diagnostics';
+require_ok 'App::Warning::Diagnostics'
+    or BAIL_OUT;
 
 like App::Warning::Diagnostics->__find_pod(),
-    qr< /perldiag \. pod \z >smx, 'POD location';
+    qr< /perldiag \. pod \z >smx, 'POD location'
+    or BAIL_OUT;
 
 done_testing;
 

@@ -31,9 +31,7 @@ sub author {
 
 sub build_requires {
     return +{
-	'Test2::V0'	=> 0,
-	'Test2::Plugin::BailOnFail'	=> 0,
-	'Test2::Tools::LoadModule'	=> 0,
+	'Test::More'	=> 0,
     };
 }
 

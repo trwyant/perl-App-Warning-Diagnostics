@@ -5,9 +5,10 @@ use 5.010;
 use strict;
 use warnings;
 
-use Config;
+use App::Warning::Diagnostics;
+use Test::More;
 
-use Test2::V0 -target => 'App::Warning::Diagnostics';
+use constant CLASS	=> 'App::Warning::Diagnostics';
 
 {
     # DANGER WILL ROBINSON!
