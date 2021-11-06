@@ -1,6 +1,6 @@
 package main;
 
-use 5.010;
+use 5.006;
 
 use strict;
 use warnings;
@@ -19,7 +19,9 @@ use constant CLASS	=> 'App::Warning::Diagnostics';
     }
 }
 
-is CLASS->pod_encoding(), 'utf-8', 'POD encoding';
+if ( "$]" >= 5.008 ) {
+    is CLASS->pod_encoding(), 'utf-8', 'POD encoding';
+}
 
 is CLASS->warning_diagnostics(), undef, 'No arguments';
 

@@ -1,6 +1,6 @@
 package My::Module::Meta;
 
-use 5.010;
+use 5.006;
 
 use strict;
 use warnings;
@@ -154,7 +154,9 @@ sub requires {
 	'Getopt::Long'	=> 0,
 	'Pod::Text'	=> 0,
 	'Pod::Usage'	=> 0,
-	( $^O eq 'VMS' ? ( 'VMS::Filespec' => 0 ) : () ),
+	( $^O eq 'VMS' ? ( 'VMS::Filespec'	=> 0 )	: () ),
+	( "$]" < 5.008 ? ( 'IO::String'		=> 0 )	: () ),
+	base		=> 0,
 	constant	=> 0,
 	strict		=> 0,
 	warnings	=> 0,
@@ -163,7 +165,7 @@ sub requires {
 }
 
 sub requires_perl {
-    return 5.010;
+    return 5.006;
 }
 
 

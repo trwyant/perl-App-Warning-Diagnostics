@@ -1,13 +1,14 @@
 package App::Warning::Diagnostics;
 
-use 5.010;
+use 5.006;
 
 use strict;
 use warnings;
 
 use Carp;
 use Config;
-use Exporter qw{ import };
+
+use base qw{ Exporter };	# Because of use 5.006.
 
 our $VERSION = '0.000_011';
 
@@ -335,7 +336,10 @@ sub __read_pod {
 	    } else {
 		$pod_handler->();
 	    }
-	} elsif ( ! defined $encoding && m/ \A =encoding \s+ ( \S+ ) /smx ) {
+	} elsif ( ! defined $encoding &&
+	    m/ \A =encoding \s+ ( \S+ ) /smx &&
+	    "$]" >= 5.008
+	) {
 	    $diagnostic = $raw_pod = undef;
 	    $encoding = $1;
 	    seek $fh, 0, 0;
@@ -478,6 +482,9 @@ returned by this subroutine.
 
 This subroutine returns the encoding of the POD if specified by the POD
 file; otherwise it returns C<undef>.
+
+B<Note> that this always returns C<undef> if run under Perl 5.6, even if
+the POD being analyzed has an C<'=encoding'> paragraph.
 
 =head2 warning_diagnostics
 

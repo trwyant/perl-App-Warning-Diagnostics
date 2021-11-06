@@ -11,7 +11,10 @@ eval {
 } or plan skip_all => 'Test::Prereq::Meta not available';
 
 my $tpm = Test::Prereq::Meta->new(
-    accept	=> [ $^O eq 'VMS' ? () : qw{ VMS::Filespec } ],
+    accept	=> [
+	( $^O eq 'VMS' ? () : qw{ VMS::Filespec } ),
+	( "$]" >= 5.008 ? qw{ IO::String } : () ),
+    ],
 );
 
 $tpm->all_prereq_ok();
