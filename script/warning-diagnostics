@@ -5,8 +5,14 @@ use 5.006;
 use strict;
 use warnings;
 
-use App::Warning::Diagnostics
-    qw{ builtins pod_encoding warning_diagnostics };
+use App::Warning::Diagnostics;
+
+# Done this way for the benefit of tools/fatpack
+BEGIN {
+    App::Warning::Diagnostics->import(
+	qw{ builtins pod_encoding warning_diagnostics } );
+}
+
 use Config;
 use Getopt::Long 2.33 qw{ :config auto_version };
 use Pod::Text;

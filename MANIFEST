@@ -13,6 +13,7 @@ META.yml
 README
 script/warning-diagnostics
 tools/extract-warnings
+tools/fatpack
 t/basic.t
 t/data/perldiag.pod
 t/diag.t

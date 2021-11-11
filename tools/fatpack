@@ -1,0 +1,94 @@
+#!/usr/bin/env perl
+
+use 5.006;
+
+use strict;
+use warnings;
+
+use Getopt::Long 2.33 qw{ :config auto_version };
+use Pod::Usage;
+
+our $VERSION = '0.000_012';
+
+my %opt;
+
+GetOptions( \%opt,
+    help => sub { pod2usage( { -verbose => 2 } ) },
+) or pod2usage( { -verbose => 0 } );
+
+my $out_file = @ARGV ? $ARGV[0] : 'warning-diagnostics-fatpack';
+
+my $script = slurp( 'script/warning-diagnostics' );
+
+my $module = slurp( 'lib/App/Warning/Diagnostics.pm' );
+
+$module =~ s/ __END__ .* //smx;
+
+$script =~ s/ ^ use \s+ App::Warning::Diagnostics; $ /BEGIN {\n$module}/smx;
+
+{
+    open my $fh, '>', $out_file or die "Failed to open $out_file: $!\n";
+    print { $fh } $script;
+    close $fh;
+}
+
+sub slurp {
+    my ( $fn ) = @_;
+    local $/ = undef;
+    open my $fh, '<', $fn or die "Failed to open $fn: $!\n";
+    my $data = <$fh>;
+    close $fh;
+    return $data;
+}
+
+__END__
+
+=head1 TITLE
+
+fatpack - Pack script/warning-diagnostics and App::Warning::Diagnostics into a single file.
+
+=head1 SYNOPSIS
+
+ tools/fatpack # Writes warning-diagnostics-fatpack
+ tools/fatpack ~/bin/warning-diagnostics
+ tools/fatpack --help
+ tools/fatpack --version
+
+=head1 OPTIONS
+
+=head2 --help
+
+This option displays the documentation for this script. The script then
+exits.
+
+=head2 --version
+
+This option displays the version of this script. The script then exits.
+
+=head1 DETAILS
+
+This Perl script reads F<script/warning-diagnostics> and
+F<lib/App/Warning/Diagnostics.pm>, combines them into a single script,
+and writes that to the file specified on the command line. If no file is
+specified the output is F<warning-diagnostics-fatpack>. This B<must> be
+executed in the top directory of the C<App-Warning-Diagnostics> kit.
+
+=head1 AUTHOR
+
+Thomas R. Wyant, III F<wyant at cpan dot org>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2021 by Thomas R. Wyant, III
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl 5.10.0. For more details, see the full text
+of the licenses in the directory LICENSES.
+
+This program is distributed in the hope that it will be useful, but
+without any warranty; without even the implied warranty of
+merchantability or fitness for a particular purpose.
+
+=cut
+
+# ex: set textwidth=72 :
