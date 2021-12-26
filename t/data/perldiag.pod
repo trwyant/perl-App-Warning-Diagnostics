@@ -16,6 +16,10 @@ categories have to be real, but the diagnostics are pure fiction.
 
 (W exiting) Because this is Hell -- or the MTA.
 
+=item Not valid Perl
+
+(W syntax) This code makes no sense at all.
+
 =item Vulcan mind meld interface not active
 
 (W unopened) I do not understand the intention of this code because I

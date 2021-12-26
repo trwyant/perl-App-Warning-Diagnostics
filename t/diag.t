@@ -82,6 +82,17 @@ EOD
 is CLASS->warning_diagnostics( qw{ closed no-closed } ),
     undef, 'closed no-closed';
 
+is CLASS->warning_diagnostics( qw{ syntax } ),
+    <<'EOD', q<syntax can find things assigned directly to 'syntax'>;
+=over
+
+=item Not valid Perl
+
+(W syntax) This code makes no sense at all.
+
+=back
+EOD
+
 done_testing;
 
 1;

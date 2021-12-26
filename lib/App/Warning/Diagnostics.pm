@@ -21,7 +21,9 @@ use constant COUNT_SET_BITS	=> '%32b*';	# Unpack template
 
 my $diagnostic;	# Array of diagnostics.
 my $encoding;	# =encoding if any, undef if none
+my %my_bits;	# Adjusted warning bits.
 my @primitive;	# Primitive (=non-compoosite) warning categories
+my @composite;	# Composite warning categories.
 my %builtin;	# All builtin warnings (a guess)
 
 # The problem we need to solve is that we want to consider only built-in
@@ -135,8 +137,31 @@ foreach ( @possible_builtins ) {
     my $bit_mask = $warnings::Bits{$_}
 	or next;
     $builtin{$_} = $bit_mask;
-    1 == unpack COUNT_SET_BITS, $bit_mask
-	and push @primitive, "$_";
+    if ( 1 == unpack COUNT_SET_BITS, $bit_mask ) {
+	push @primitive, "$_";
+	$my_bits{$_} = $warnings::Bits{$_};
+    } else {
+	push @composite, $_;
+    }
+}
+
+# Adjust the warning bits
+# We jump through this hoop because there are group categories that
+# nonetheless have their own bits assigned to them, over and above the
+# bits associated with member categories.
+# FIXME I only really need this if --exact is not asserted. Except for
+# $mask, which may be needed irregardless.
+{
+    my $all_primitive = $warnings::NONE;
+    $all_primitive |= $warnings::Bits{$_} for @primitive;
+    my $not_primitive = ~ $all_primitive;
+    foreach my $category ( @composite ) {
+	my $m = $warnings::Bits{$category} & $not_primitive;
+	my $bits = unpack COUNT_SET_BITS, $m;
+	if ( $bits == 1 ) {
+	    $my_bits{$category} = $m;
+	}
+    }
 }
 
 
@@ -174,11 +199,11 @@ sub warning_diagnostics {
 	or return;
 
     my %want_diag;
-    foreach ( @primitive ) {
-	# NOTE: Can't just test $mask & $builtin{$_}, because
+    foreach ( keys %my_bits ) {
+	# NOTE: Can't just test $mask & $my_bits{$_}, because
 	# they are non-empty strings, so the result will also be a
 	# non-empty string, which is always true whatever its contents.
-	if ( unpack COUNT_SET_BITS, $mask & $builtin{$_} ) {
+	if ( unpack COUNT_SET_BITS, $mask & $my_bits{$_} ) {
 	    $want_diag{$_} = 1;
 	}
     }
