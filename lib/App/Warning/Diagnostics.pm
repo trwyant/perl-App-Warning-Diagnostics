@@ -28,75 +28,7 @@ my %builtin;	# All builtin warnings (a guess)
 # warnings categories. But it is possible to add categories, and this
 # may already have been done by the time we get loaded.
 #
-=begin comment
-
-# So we do the best we can by:
-#
-# * Masking out bits that are not in $warnings::NONE. This does not get
-#   updated when categories are added, but because a category only takes
-#   two bits we will still accept zero to three added categories as a
-#   result of this check.
-# * Requiring categories occupying the last byte of $warnings::NONE
-#   to be all lower-case or colons. This is an heuristic based on the
-#   fact that added categories are qualified by the name space that
-#   added them. which is typically mixed-case. This also potentially
-#   catches built-in primitives defined in the last byte, and built-in
-#   composites that include primitives defined in the last byte, but so
-#   far (as of Perl 5.34.0) those are all lower-case or colons.
-# * Brute-force elimination of categories occupying the last byte that
-#   are not amenable to any of the above.
-#
-# Only the first check is guaranteed, so we may still get as many as
-# three added categories, but the second check makes more than zero
-# unlikely. I hope. But my hope is cheated because constant.pm calls
-# warnings::register.
-{
-    my %brute_force = map { $_ => 1 } qw{ constant };
-    my $all = ~ $warnings::NONE;
-    my $suspicious = $warnings::NONE;
-    substr $suspicious, -1, 1, "\xFF";
-    foreach ( sort keys %warnings::Bits ) {
-	my $bit_mask = $warnings::Bits{$_};
-	my $set_bits = unpack COUNT_SET_BITS, $bit_mask & $all
-	    or next;
-	unpack COUNT_SET_BITS, $bit_mask & $suspicious
-	    and ( m/ [[:upper:]] /smx || $brute_force{$_} )
-	    and next;
-	$builtin{$_} = $bit_mask;
-	1 == $set_bits
-	    and push @primitive, $_;
-    }
-}
-
-# The following is really brute-force, but working directly with (say)
-# %warnings::Bits involved so much ad-hocery to strain out stuff that
-# got added by warnings::register that eventually I just gave up. If
-# this does not work I will probably extract something like it to a
-# tools/ script, hand-groom the output, and slap that into this module.
-{
-    local $/ = undef;	# Slurp mode
-    open my $fh, '<', $INC{'warnings.pm'}
-	or die "Unable to open warnings.pm: $!\n";
-    my $source = <$fh>;
-    close $fh;
-    # (
-    $source =~ m/ ( ^ \Qour %Bits = (\E [^)]+ \); $ ) /smx
-	or die "Unable to find definition of %Offsets hash\n";
-    my $hash = $1;
-
-    while ( $hash =~ m/ ' ( [\w:]+ ) ' \s* => \s* "[^"]+" \s* , /smxg ) {
-	my $bit_mask = $warnings::Bits{$1};
-	$builtin{$1} = $bit_mask;
-	1 == unpack COUNT_SET_BITS, $bit_mask
-	    and push @primitive, "$1";
-    }
-}
-
-=end comment
-
-=cut
-
-# The following is also brute-force, but exerts the force just once to
+# The following is brute-force, but exerts the force just once to
 # produce the following table. The drawback of this implementation is
 # that the addition of a warning category requires re-release of this
 # module. Sigh.
