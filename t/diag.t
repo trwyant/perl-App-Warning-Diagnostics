@@ -90,6 +90,27 @@ is CLASS->warning_diagnostics( qw{ syntax } ),
 
 (W syntax) This code makes no sense at all.
 
+=item This code is ambiguous
+
+=item This code has more than one valid parse
+
+(W ambiguous) This code is valid Perl, but I do not know what you
+actually mean by it.
+
+=back
+EOD
+
+is CLASS->warning_diagnostics( qw{ ambiguous } ),
+    <<'EOD', 'empty =item';
+=over
+
+=item This code is ambiguous
+
+=item This code has more than one valid parse
+
+(W ambiguous) This code is valid Perl, but I do not know what you
+actually mean by it.
+
 =back
 EOD
 
