@@ -1,3 +1,20 @@
+0.000_013	2021-12-27	T. R. Wyant
+    Add exact reporting (i.e. no subcategories).  This is
+    warning_diagnostics_exact() in the .pm, and --exact in the
+    script.
+
+    Update warnings table for Perl 5.35.7. No changes.
+
+    Rename script to perl-warning-diagnostics
+
+    Test for handling of empty =item.
+
+    Recognize group categories with directly-assigned diagnostics.
+
+    Remove block-commented code.
+
+    Add (and support) tools/fatpack
+
 0.000_012	2021-11-06	T. R. Wyant
     Add removed warnings to canned list.
 
