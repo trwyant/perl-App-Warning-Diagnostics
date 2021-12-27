@@ -11,7 +11,7 @@ MANIFEST
 META.json
 META.yml
 README
-script/warning-diagnostics
+script/perl-warning-diagnostics
 tools/extract-warnings
 tools/fatpack
 t/basic.t

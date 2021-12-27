@@ -170,7 +170,7 @@ sub requires_perl {
 
 
 sub script_files {
-    return [ qw{ script/warning-diagnostics } ];
+    return [ qw{ script/perl-warning-diagnostics } ];
 }
 
 sub version_from {
