@@ -10,7 +10,8 @@ use App::Warning::Diagnostics;
 # Done this way for the benefit of tools/fatpack
 BEGIN {
     App::Warning::Diagnostics->import(
-	qw{ builtins pod_encoding warning_diagnostics } );
+	qw{ builtins pod_encoding warning_diagnostics
+	warning_diagnostics_exact } );
 }
 
 use Config;
@@ -25,7 +26,7 @@ my %opt = (
     render	=> 1,
 );
 
-my @lgl_opt = qw{ complete|completion=s pager! render! };
+my @lgl_opt = qw{ complete|completion=s exact! pager! render! };
 
 GetOptions( \%opt,
     @lgl_opt,
@@ -39,7 +40,11 @@ if ( $opt{complete} ) {
     exit;
 }
 
-defined( my $raw_pod = warning_diagnostics( @ARGV ) )
+my $code = __PACKAGE__->can( $opt{exact} ?
+    'warning_diagnostics_exact' :
+    'warning_diagnostics'
+);
+defined( my $raw_pod = $code->( @ARGV ) )
     or die "No warning categories specified\n";
 
 my $out;
@@ -233,6 +238,11 @@ in F<~/.zshrc>.
 =head2 --completion
 
 This is just an alias for L<--complete|/--complete>.
+
+=head2 --exact
+
+If this Boolean option is asserted, subcategories of group categories
+are B<not> included in the output.
 
 =head2 --help
 

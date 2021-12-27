@@ -12,7 +12,10 @@ use base qw{ Exporter };	# Because of use 5.006.
 
 our $VERSION = '0.000_012';
 
-our @EXPORT_OK = qw{ builtins pod_encoding warning_diagnostics };
+our @EXPORT_OK = qw{
+    builtins pod_encoding warning_diagnostics
+    warning_diagnostics_exact
+};
 our %EXPORT_TAGS = (
     all	=> \@EXPORT_OK,
 );
@@ -177,7 +180,19 @@ sub pod_encoding {
 }
 
 sub warning_diagnostics {
+    push @_, \%builtin;
+    goto &_warning_diagnostics;
+}
+
+sub warning_diagnostics_exact {
+    push @_, \%my_bits;
+    goto &_warning_diagnostics;
+}
+
+sub _warning_diagnostics {
     my @warning = @_;
+
+    my $bits = pop @warning;
 
     # Maybe called as static method.
     @warning
@@ -187,10 +202,10 @@ sub warning_diagnostics {
     my $mask = $warnings::NONE;
 
     foreach ( @warning ) {
-	if ( exists $builtin{$_} ) {
-	    $mask |= $builtin{$_};
-	} elsif ( m/ \A no- ( .* ) /smx && exists $builtin{$1} ) {
-	    $mask &= ~ $builtin{$1};
+	if ( exists $bits->{$_} ) {
+	    $mask |= $bits->{$_};
+	} elsif ( m/ \A no- ( .* ) /smx && exists $bits->{$1} ) {
+	    $mask &= ~ $bits->{$1};
 	} else {
 	    croak "Unknown warnings category $_";
 	}
@@ -492,6 +507,15 @@ the warnings categories themselves are retained for backward
 compatibility. Such categories will return no diagnostics. This looks
 like an empty C<=over/=back> if in scalar context, but an empty list in
 list context.
+
+=head2 warning_diagnostics_exact
+
+This subroutine is similar to
+L<warning_diagnostics()|/warning_diagnostics>. The difference is that
+when a group category is specified, this subroutine returns only
+diagnostics assigned directly to the group category, whereas
+L<warning_diagnostics()|/warning_diagnostics> also returns diagnostics
+assigned to sub-categories.
 
 =head1 SEE ALSO
 
