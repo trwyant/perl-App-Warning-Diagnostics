@@ -100,6 +100,17 @@ actually mean by it.
 =back
 EOD
 
+is CLASS->warning_diagnostics_exact( qw{ syntax } ),
+    <<'EOD', q<warning_diagnostics_exact() excludes sub-categories>;
+=over
+
+=item Not valid Perl
+
+(W syntax) This code makes no sense at all.
+
+=back
+EOD
+
 is CLASS->warning_diagnostics( qw{ ambiguous } ),
     <<'EOD', 'empty =item';
 =over
