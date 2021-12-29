@@ -1,3 +1,9 @@
+0.000_014	2021-12-28	T. R. Wyant
+    Add completion(), so it can be tested, and re-implement
+    script/perl-warning-diagnostics in terms of this.
+
+    Add test for warning_diagnostics_exact().
+
 0.000_013	2021-12-27	T. R. Wyant
     Add exact reporting (i.e. no subcategories).  This is
     warning_diagnostics_exact() in the .pm, and --exact in the
