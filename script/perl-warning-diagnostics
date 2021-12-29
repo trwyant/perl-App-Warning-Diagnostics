@@ -10,7 +10,8 @@ use App::Warning::Diagnostics;
 # Done this way for the benefit of tools/fatpack
 BEGIN {
     App::Warning::Diagnostics->import(
-	qw{ builtins pod_encoding warning_diagnostics
+	qw{ builtins complete pod_encoding
+	warning_diagnostics
 	warning_diagnostics_exact } );
 }
 
@@ -77,10 +78,6 @@ if ( $opt{render} ) {
     print { $out } $raw_pod;
 }
 
-# NOTE that the default bash variable COMP_WORDBREAKS contains a colon
-# (':'), but I don't like the way this behaves.
-use constant COMP_WORDBREAKS	=> qr/ ( \s+ | ["'\@><=;|&(] ) /smx;	# )
-
 sub complete_bash {
     my @option = @_;
     my @rslt = complete_zsh_bash( @option );
@@ -105,84 +102,12 @@ sub complete_zsh_bash {
     defined $point
 	or $point = length $line;
 
-    my @words = split COMP_WORDBREAKS, substr $line, 0, $point;
-    $line =~ m/ @{[ COMP_WORDBREAKS ]} \z /smx
-	and push @words, '';
-
-    @words
-	or return;
-
-    my @rslt;
-
-    my $complete = $words[-1];
-
-    # NOTE to the curious: I believe nothing below this point is
-    # specific to bash. If there is need for a readline_completion() the
-    # below code could be factored into a separate subroutine to be
-    # called by bash_completion(), readline_completion(), or potentially
-    # any other completion code.
-    # NOTE except that zsh's bash completion emulation works differently
-    # than actual bash completion.
-
-    if ( $complete =~ m/ \A --? /smx ) {
-
-	push @rslt, _complete_options( $complete, @option );
-
-    } else {
-
-	$complete =~ m/ \w : \z /smx
-	    and $complete .= ':';
-	my $re = qr/ \A ( \Q$complete\E [\w-]* (?: :: )? ) /smx;
-	my %found;
-	foreach my $cat ( builtins() ) {
-	    foreach my $item ( $cat, "no-$cat" ) {
-		$item =~ m/ $re /smx
-		    or next;
-		$found{$1}++
-		    and next;
-		push @rslt, "$1";
-	    }
-	}
-
-	'' eq $complete
-	    and push @rslt, _complete_options( $complete, @option );
-
-    }
-
-    @rslt = sort @rslt;
-
-    defined wantarray
+    my @rslt = complete( $line, $point, @option );
+    wantarray
 	and return @rslt;
-
     local $\ = "\n";
     print for @rslt;
-
     return;
-}
-
-sub _complete_options {
-    my ( $complete, @option ) = @_;
-
-    my $prefix = '--';
-
-    my @rslt;
-
-    foreach my $o ( @option ) {
-	my ( $names, $kind ) = split qr< ( [:=!] ) >smx, $o;
-	defined $kind
-	    or $kind = '';
-	my @opts = split qr< [|] >smx, $names;
-	if ( '!' eq $kind ) {
-	    push @rslt, grep { ! index $_, $complete }
-		map {; ( "$prefix$_", "${prefix}no-$_" ) }
-		@opts;
-	} else {
-	    push @rslt, grep { ! index $_, $complete }
-		map { "$prefix$_" } @opts;
-	}
-    }
-
-    return @rslt;
 }
 
 __END__

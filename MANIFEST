@@ -16,6 +16,7 @@ tools/extract-warnings
 tools/fatpack
 t/basic.t
 t/data/perldiag.pod
+t/complete.t
 t/diag.t
 xt/author/changes.t
 xt/author/critic.t

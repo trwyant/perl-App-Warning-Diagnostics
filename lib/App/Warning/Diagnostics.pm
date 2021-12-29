@@ -13,8 +13,8 @@ use base qw{ Exporter };	# Because of use 5.006.
 our $VERSION = '0.000_013';
 
 our @EXPORT_OK = qw{
-    builtins pod_encoding warning_diagnostics
-    warning_diagnostics_exact
+    builtins complete pod_encoding
+    warning_diagnostics warning_diagnostics_exact
 };
 our %EXPORT_TAGS = (
     all	=> \@EXPORT_OK,
@@ -171,6 +171,62 @@ foreach ( @possible_builtins ) {
 
 sub builtins {
     return keys %builtin;
+}
+
+sub complete {
+    my ( $comp_line, $comp_point, @opt_spec ) = @_;
+
+    defined $comp_point
+	or $comp_point = length $comp_line;
+
+    my @word = split qr/ \s+ /smx,
+	substr( $comp_line, 0, $comp_point ), -1;
+
+    shift @word;
+
+    my @match;
+
+    if ( '' eq $word[-1] ) {
+	@match = ( _complete_category( $word[-1] ), _complete_option(
+		$word[-1], @opt_spec ) );
+    } elsif ( $word[-1] =~ s/ \A --? //smx ) {
+	@match = _complete_option( $word[-1], @opt_spec );
+    } else {
+	@match = _complete_category( $word[-1] );
+    }
+
+    return( sort @match );
+}
+
+sub _complete_category {
+    my ( $word ) = @_;
+    my @match;
+    my $re = qr< \A \Q$word\E >smx;
+    foreach my $category ( builtins() ) {
+	foreach ( $category, "no-$category" ) {
+	    $_ =~ $re
+		and push @match, $_;
+	}
+    }
+    return @match;
+}
+
+sub _complete_option {
+    my ( $word, @opt_spec ) = @_;
+    my @match;
+    my $re = qr< \A \Q$word\E >smx;
+    foreach my $option ( @opt_spec ) {
+	my @alias = split qr< [|] >smx, $option;
+	if ( $alias[-1] =~ s/ ! \z //smx ) {
+	    push @match, map { "--$_" } grep { $_ =~ $re } map { $_
+		=> "no-$_" } @alias;
+	} elsif ( $alias[-1] =~ s/ ( [:=] ) ( .* ) //smx ) {
+	    push @match, map { "--$_$1" } grep { $_ =~ $re } @alias;
+	} else {
+	    push @match, map { "--$_" } grep { $_ =~ $re } @alias;
+	}
+    }
+    return @match;
 }
 
 sub pod_encoding {
@@ -454,6 +510,27 @@ none is exported by default. They are also callable as static methods.
 This subroutine returns an array of the names of built-in warning
 categories. See L<CAVEAT|/CAVEAT> above for a caution about the data
 returned by this subroutine.
+
+=head2 complete
+
+ say sort( complete( $ENV{COMP_LINE}, $ENV{COMP_POINT},
+     qw{ foo! bar=s } ) );
+
+This subroutine generates command line completions. The arguments are
+the line being completed and the location of the cursor in that line.
+Only the first argument is required; the second defaults to the length
+of the first. The third and subsequent arguments are optional
+L<Getopt::Long|Getopt::Long>-style option specifications.
+
+If the word to be completed begins with a dash (C<'-'>), option
+completion is done on it provided any specifications are provided;
+otherwise nothing is returned.
+
+If the word to be completed does not begin with a dash, it is assumed to
+be the name of a warnings category, possibly prefixed by C<'no-'>.
+
+Either way, possible completions are returned as a list (which may be
+empty), sorted in ASCIIbetical order.
 
 =head2 pod_encoding
 
