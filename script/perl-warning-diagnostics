@@ -10,9 +10,11 @@ use App::Warning::Diagnostics;
 # Done this way for the benefit of tools/fatpack
 BEGIN {
     App::Warning::Diagnostics->import(
-	qw{ builtins complete pod_encoding
-	warning_diagnostics
-	warning_diagnostics_exact } );
+	qw{ builtins
+	complete completion_words
+	pod_encoding
+	warning_diagnostics warning_diagnostics_exact }
+    );
 }
 
 use Config;
@@ -37,6 +39,8 @@ GetOptions( \%opt,
 if ( $opt{complete} ) {
     my $code = __PACKAGE__->can( "complete_$opt{complete}" )
 	or die "Completion style '$opt{complete}' not defined\n";
+    defined $ENV{COMP_LINE}	# For testing
+	or local $ENV{COMP_LINE} = "$0 @ARGV";
     $code->( @lgl_opt, qw{ help version } );
     exit;
 }
@@ -80,16 +84,27 @@ if ( $opt{render} ) {
 
 sub complete_bash {
     my @option = @_;
+
+    if ( ( scalar completion_words( $ENV{COMP_LINE},
+		$ENV{COMP_POINT} ) ) =~ m/ [^:] : \z /smx ) {
+	print ":\n";
+	return;
+    }
+
     my @rslt = complete_zsh_bash( @option );
 
-    s/ .* :: (?= . ) //smx for @rslt;
+    while ( @rslt == grep { m/ :: /smx } @rslt ) {
+	s/ \A [^:]+ :: //smx for @rslt;
+    }
+
+    s/ (?<= :: ) .* //smx for @rslt;
 
     {
 	my %uniq;
 	@rslt = grep { ! $uniq{$_}++ } @rslt;
     }
 
-    local $\ = "\n";
+    local $\ = @rslt == 1 ? " \n" : "\n";
     print for @rslt;
     return;
 }
@@ -137,11 +152,17 @@ style. The script then exits. Valid styles are:
 
 =item bash
 
-Bash completion
+Bash completion. This is set up in F<.bashrc> as
+
+ complete -o nospace -C 'perl-warning-diagnostics --complete bash' \
+     script/perl-warning-diagnostics
 
 =item zsh_bash
 
-Zsh emulation of Bash completion.
+Zsh emulation of Bash completion. This is set up in F<bashcompinit> as
+
+ complete -C 'perl-warning-diagnostics --complete zsh_bash' \
+     perl-warning-diagnostics
 
 =back
 

@@ -13,7 +13,9 @@ use base qw{ Exporter };	# Because of use 5.006.
 our $VERSION = '0.000_014';
 
 our @EXPORT_OK = qw{
-    builtins complete pod_encoding
+    builtins
+    complete completion_words
+    pod_encoding
     warning_diagnostics warning_diagnostics_exact
 };
 our %EXPORT_TAGS = (
@@ -176,23 +178,17 @@ sub builtins {
 sub complete {
     my ( $comp_line, $comp_point, @opt_spec ) = @_;
 
-    defined $comp_point
-	or $comp_point = length $comp_line;
-
-    my @word = split qr/ \s+ /smx,
-	substr( $comp_line, 0, $comp_point ), -1;
-
-    shift @word;
+    my $word = completion_words( $comp_line, $comp_point );
 
     my @match;
 
-    if ( '' eq $word[-1] ) {
-	@match = ( _complete_category( $word[-1] ), _complete_option(
-		$word[-1], @opt_spec ) );
-    } elsif ( $word[-1] =~ s/ \A --? //smx ) {
-	@match = _complete_option( $word[-1], @opt_spec );
+    if ( '' eq $word ) {
+	@match = ( _complete_category( $word ), _complete_option(
+		$word, @opt_spec ) );
+    } elsif ( $word =~ s/ \A --? //smx ) {
+	@match = _complete_option( $word, @opt_spec );
     } else {
-	@match = _complete_category( $word[-1] );
+	@match = _complete_category( $word );
     }
 
     return( sort @match );
@@ -227,6 +223,18 @@ sub _complete_option {
 	}
     }
     return @match;
+}
+
+sub completion_words {
+    my ( $comp_line, $comp_point ) = @_;
+
+    defined $comp_point
+	or $comp_point = length $comp_line;
+
+    my @word = split qr/ \s+ /smx,
+	substr( $comp_line, 0, $comp_point ), -1;
+
+    return wantarray ? @word : $word[-1];
 }
 
 sub pod_encoding {
@@ -531,6 +539,17 @@ be the name of a warnings category, possibly prefixed by C<'no-'>.
 
 Either way, possible completions are returned as a list (which may be
 empty), sorted in ASCIIbetical order.
+
+=head2 completion_words
+
+ say for completion_words( $ENV{COMP_LINE}, $ENV{COMP_POINT} );
+
+This subroutine breaks the line being completed into words, up to the
+specified completion point. If called in scalar context, you get just
+the word being completed.
+
+This is used by L<complete()|/complete>, but exposed because it was
+found to be useful in performing completion under C<bash>.
 
 =head2 pod_encoding
 
