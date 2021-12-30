@@ -10,7 +10,7 @@ use Config;
 
 use base qw{ Exporter };	# Because of use 5.006.
 
-our $VERSION = '0.000_014';
+our $VERSION = '0.000_015';
 
 our @EXPORT_OK = qw{
     builtins
