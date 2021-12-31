@@ -5,6 +5,7 @@ use 5.006;
 use strict;
 use warnings;
 
+use Fcntl qw{ :mode };
 use Getopt::Long 2.33 qw{ :config auto_version };
 use Pod::Usage;
 
@@ -16,20 +17,39 @@ GetOptions( \%opt,
     help => sub { pod2usage( { -verbose => 2 } ) },
 ) or pod2usage( { -verbose => 0 } );
 
-my $out_file = @ARGV ? $ARGV[0] : 'warning-diagnostics-fatpack';
+my $out_file = @ARGV ? $ARGV[0] : 'perl-warning-diagnostics-fatpack';
 
-my $script = slurp( 'script/warning-diagnostics' );
+my $script = slurp( 'script/perl-warning-diagnostics' );
 
 my $module = slurp( 'lib/App/Warning/Diagnostics.pm' );
 
-$module =~ s/ __END__ .* //smx;
+$module =~ s/ ^ __END__ .* //smx;
 
-$script =~ s/ ^ use \s+ App::Warning::Diagnostics; $ /BEGIN {\n$module}/smx;
+$script =~ s/ ( [^\n]* \n ) //smx;
+
+my $shebang = $1;
 
 {
     open my $fh, '>', $out_file or die "Failed to open $out_file: $!\n";
+    print { $fh } $shebang;
+    print { $fh } <<'EOD';
+
+BEGIN {
+EOD
+    print { $fh } $module;
+    print { $fh } <<'EOD';
+    $INC{ 'App/Warning/Diagnostics.pm' } = $0;
+}
+EOD
     print { $fh } $script;
     close $fh;
+
+    my $mode = ( stat $out_file )[2]
+	or die "Failed to fetch mode of $out_file: $!\n";
+    $mode |= S_IXUSR | S_IXGRP | S_IXOTH;
+
+    chmod $mode, $out_file
+	or die "Failed to make $out_file executable: $!\n";
 }
 
 sub slurp {
