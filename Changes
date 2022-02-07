@@ -1,3 +1,12 @@
+0.000_016	2022-02-07	T. R. Wyant
+    Update copyright to 2022.  No other changes.
+
+commit 3cd4ff7c4b90860338ec710da80e180051149129
+Author: Tom Wyant <wyant@cpan.org>
+Date:   Fri Dec 31 06:35:48 2021 -0500
+
+    Rework tools/fatpack.
+
 0.000_015	2021-12-29	T. R. Wyant
     Get Bash completion right. I hope.
 
