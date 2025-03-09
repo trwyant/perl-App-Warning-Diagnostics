@@ -1,9 +1,10 @@
-0.000_016	2022-02-07	T. R. Wyant
-    Update copyright to 2022.  No other changes.
+0.000_017	2025-03-09	T. R. Wyant
+    Update warnings list to version 1.70 (perl 5.40).
 
-commit 3cd4ff7c4b90860338ec710da80e180051149129
-Author: Tom Wyant <wyant@cpan.org>
-Date:   Fri Dec 31 06:35:48 2021 -0500
+    Correct POD in script/perl-warning-diagnostics
+
+0.000_016	2022-02-07	T. R. Wyant
+    Update copyright to 2022.
 
     Rework tools/fatpack.
 
