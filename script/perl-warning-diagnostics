@@ -118,14 +118,14 @@ __END__
 
 =head1 TITLE
 
-warning-diagnostics - List diagnostics enabled by specified warning categories
+perl-warning-diagnostics - List diagnostics enabled by specified warning categories
 
 =head1 SYNOPSIS
 
- warning-diagnostics uninitialized
- warning-diagnostics io no-unopened no-closed
- warning-diagnostics --help
- warning-diagnostics --version
+ perl-warning-diagnostics uninitialized
+ perl-warning-diagnostics io no-unopened no-closed
+ perl-warning-diagnostics --help
+ perl-warning-diagnostics --version
 
 =head1 OPTIONS
 
@@ -135,7 +135,7 @@ warning-diagnostics - List diagnostics enabled by specified warning categories
  --complete zsh_bash
 
 This option specifies that command completion be done in the specified
-style. The script then exits. Valid styles are:
+style. Valid styles are:
 
 =over
 
@@ -158,15 +158,15 @@ Zsh emulation of Bash completion. This is set up in F<bashcompinit> as
 For completion under Bash specify
 
  complete \
-   -C 'warning-diagnostics --complete bash' \
-   warning-diagnostics
+   -C 'perl-warning-diagnostics --complete bash' \
+   perl-warning-diagnostics
 
 in F<~/.bashrc>. For completion under zsh Bash completion emulation
 specify
 
  complete \
-   -C 'warning-diagnostics --complete zsh_bash' \
-   warning-diagnostics
+   -C 'perl-warning-diagnostics --complete zsh_bash' \
+   perl-warning-diagnostics
 
 in F<~/.zshrc>.
 
