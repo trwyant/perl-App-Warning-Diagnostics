@@ -19,8 +19,18 @@ GetOptions( \%opt,
 # We initialize with warnings that have been removed
 my %possible_builtins = map { $_ => 1 }
     'chmod',				# Removed in 5.8
+    'experimental::alpha_assertions',	# Removed in 5.38
     'experimental::autoderef',		# Removed in 5.24
+    'experimental::bitwise',		# Removed in 5.38
+    'experimental::const_attr',		# Removed in 5.40
+    'experimental::for_list',		# Removed in 5.40
+    'experimental::isa',		# Removed in 5.38
+    'experimental::lexical_subs',	# Removed in 5.38
     'experimental::lexical_topic',	# Removed in 5.24
+    'experimental::postderef',		# Removed in 5.38
+    'experimental::script_run',		# Removed in 5.38
+    'experimental::signatures',		# Removed in 5.38
+    'experimental::smartmatch',		# Removed in 5.38
     'umask',				# Removed in 5.8
     'y2k',				# Removed in 5.10
     ;

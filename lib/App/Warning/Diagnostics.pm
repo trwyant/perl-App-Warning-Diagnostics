@@ -43,7 +43,7 @@ my %builtin;	# All builtin warnings (a guess)
 ## BEGIN REPLACEMENT
 
 # The following code is replaced by tools/extract-warnings. Do not edit.
-# Generated 2021-12-27 by Perl v5.35.7 using warnings 1.56
+# Generated 2025-03-09 by Perl v5.40.1 using warnings 1.70
 
 my @possible_builtins = qw{
     all
@@ -54,16 +54,29 @@ my @possible_builtins = qw{
     closure
     debugging
     deprecated
+    deprecated::apostrophe_as_package_separator
+    deprecated::delimiter_will_be_paired
+    deprecated::dot_in_inc
+    deprecated::goto_construct
+    deprecated::missing_import_called_with_args
+    deprecated::smartmatch
+    deprecated::subsequent_use_version
+    deprecated::unicode_property_name
+    deprecated::version_downgrade
     digit
     exec
     exiting
     experimental
     experimental::alpha_assertions
+    experimental::args_array_with_signatures
     experimental::autoderef
     experimental::bitwise
+    experimental::builtin
+    experimental::class
     experimental::const_attr
     experimental::declared_refs
     experimental::defer
+    experimental::extra_paired_delimiters
     experimental::for_list
     experimental::isa
     experimental::lexical_subs
@@ -109,6 +122,7 @@ my @possible_builtins = qw{
     redundant
     regexp
     reserved
+    scalar
     semicolon
     severe
     shadow
@@ -130,6 +144,7 @@ my @possible_builtins = qw{
 };
 
 ## END REPLACEMENT
+
 
 
 
