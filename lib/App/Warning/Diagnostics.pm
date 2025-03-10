@@ -24,6 +24,10 @@ our %EXPORT_TAGS = (
 
 use constant COUNT_SET_BITS	=> '%32b*';	# Unpack template
 
+use constant DIAG_SEV		=> 0;	# Severity
+use constant DIAG_CAT		=> 1;	# Categories
+use constant DIAG_POD		=> 2;	# POD
+
 my $diagnostic;	# Array of diagnostics.
 my $encoding;	# =encoding if any, undef if none
 my %my_bits;	# Adjusted warning bits.
@@ -313,7 +317,7 @@ sub _warning_diagnostics {
 	or __read_pod();
 
     my @pod =
-	map { $_->[1] }
+	map { $_->[ DIAG_POD ] }
 	grep { _want_diag( \%want_diag, $_ ) } @{ $diagnostic };
 
     wantarray
@@ -385,11 +389,13 @@ sub __read_pod {
 			or next;
 		    m/ ^ = /smx
 			and next;
-		    if ( m/ \A \( [[:upper:]] \s+ ( [\w:, ]+ ) \) /smx ) {
+		    if ( m/ \A \( ( [[:upper:]] ) \s+ ( [\w:, ]+ ) \) /smx ) {
+			my $severity = $1;
 			$_ = $leader;
-			my @category = split qr< \s* , \s* | \s+ >smx, $1;
-			push @{ $diagnostic ||= [] }, [ \@category, $leader ];
-			$raw_pod = \( $diagnostic->[-1][1] );
+			my @category = split qr< \s* , \s* | \s+ >smx, $2;
+			push @{ $diagnostic ||= [] },
+			    [ $severity, \@category, $leader ];
+			$raw_pod = \( $diagnostic->[-1][ DIAG_POD ] );
 			$pod_handler = $accumulate_pod;
 		    } else {
 			$pod_handler = $ignore_pod;
@@ -423,7 +429,7 @@ sub __read_pod {
 
 sub _want_diag {
     my ( $want, $diag ) = @_;
-    foreach my $cat ( @{ $diag->[0] } ) {
+    foreach my $cat ( @{ $diag->[ DIAG_CAT ] } ) {
 	$want->{$cat}
 	    and return 1;
     }
