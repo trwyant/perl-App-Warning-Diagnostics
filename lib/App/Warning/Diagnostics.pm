@@ -259,24 +259,29 @@ sub pod_encoding {
 }
 
 sub warning_diagnostics {
-    push @_, \%builtin;
+    unless ( ref $_[0] ) {
+	@_
+	    and $_[0]->isa( __PACKAGE__ )
+	    and shift @_;
+	unshift @_, {};
+    }
     goto &_warning_diagnostics;
 }
 
-sub warning_diagnostics_exact {
-    push @_, \%my_bits;
+sub warning_diagnostics_exact {	## no critic (RequireArgUnpacking)
+    ref $_[0]
+	and croak 'First argument may not be a reference';
+    @_
+	and $_[0]->isa( __PACKAGE__ )
+	and shift @_;
+    unshift @_, { exact => 1 };
     goto &_warning_diagnostics;
 }
 
 sub _warning_diagnostics {
-    my @warning = @_;
+    my ( $opt, @warning ) = @_;
 
-    my $bits = pop @warning;
-
-    # Maybe called as static method.
-    @warning
-	and $warning[0]->isa( __PACKAGE__ )
-	and shift @warning;
+    my $bits = $opt->{exact} ? \%my_bits : \%builtin;
 
     my $mask = $warnings::NONE;
 
@@ -498,7 +503,7 @@ categories.  This is also used by L<B::Deparse|B::Deparse> and
 L<Test::Warn|Test::Warn>, but is not documented.
 
 This module initializes the bit mask used to combine warning categories
-this module uses C<$warnings::NONE>. This is also used by
+this module uses to C<$warnings::NONE>. This is also used by
 L<B::Deparse|B::Deparse>, but is not documented.
 
 =head2 Custom warning categories
@@ -578,16 +583,14 @@ the POD being analyzed has an C<'=encoding'> paragraph.
 
 =head2 warning_diagnostics
 
- my $raw_pod = warning_diagnostics(
-     qw{ uninitialized } );
-
-Given warning categories as specified by L<warnings|warnings>, returns
-the raw POD for the diagnostics enabled by these warning categories. If
-called in scalar context, it returns a string containing one or more
-C<=item> paragraphs enclosed in C<'=over'> and C<'=back'>, or C<undef>
-if no categories are specified. If called in list context it returns the
-individual C<=item> paragraphs, or nothing if no categories were
-specified or no diagnostics were found.
+This subroutine takes as arguments an optional reference to an options
+hash, and the names of one or more warning categories as specified by
+L<warnings|warnings>, and returns the raw POD for the diagnostics
+enabled by these warning categories. If called in scalar context, it
+returns a string containing one or more C<=item> paragraphs enclosed in
+C<'=over'> and C<'=back'>, or C<undef> if no categories are specified.
+If called in list context it returns the individual C<=item> paragraphs,
+or nothing if no categories were specified or no diagnostics were found.
 
 Note that if you are interested in knowing how many diagnostics a
 particular category or set of categories produces you can get it by
@@ -619,14 +622,26 @@ compatibility. Such categories will return no diagnostics. This looks
 like an empty C<=over/=back> if in scalar context, but an empty list in
 list context.
 
+The following options are supported:
+
+=over
+
+=item exact
+
+This causes sub-categories of specified warnings to be excluded from the
+return.
+
+=back
+
 =head2 warning_diagnostics_exact
 
-This subroutine is similar to
-L<warning_diagnostics()|/warning_diagnostics>. The difference is that
-when a group category is specified, this subroutine returns only
-diagnostics assigned directly to the group category, whereas
-L<warning_diagnostics()|/warning_diagnostics> also returns diagnostics
-assigned to sub-categories.
+This B<deprecated> subroutine is equivalent to
+
+ warning_diagnostics( { exact => 1 }. ... );
+
+The latter is preferred, and this subroutine will eventually be removed.
+
+It is an error to pass a hash reference as the first argument.
 
 =head1 SEE ALSO
 

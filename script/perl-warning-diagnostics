@@ -34,12 +34,12 @@ if ( $opt{complete} ) {
     exit;
 }
 
-my $code = __PACKAGE__->can( $opt{exact} ?
-    'warning_diagnostics_exact' :
-    'warning_diagnostics'
-);
-defined( my $raw_pod = $code->( @ARGV ) )
-    or die "No warning categories specified\n";
+defined( my $raw_pod = warning_diagnostics(
+	{
+	    exact	=> $opt{exact},
+	},
+	@ARGV
+    ) ) or die "No warning categories specified\n";
 
 my $out;
 if ( $opt{pager} ) {

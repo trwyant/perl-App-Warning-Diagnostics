@@ -5,7 +5,7 @@ use 5.006;
 use strict;
 use warnings;
 
-use App::Warning::Diagnostics;
+use App::Warning::Diagnostics qw{ :all };
 use Test::More;
 
 use constant CLASS	=> 'App::Warning::Diagnostics';
@@ -20,10 +20,10 @@ use constant CLASS	=> 'App::Warning::Diagnostics';
 }
 
 if ( "$]" >= 5.008 ) {
-    is CLASS->pod_encoding(), 'utf-8', 'POD encoding';
+    is pod_encoding(), 'utf-8', 'POD encoding';
 }
 
-is CLASS->warning_diagnostics(), undef, 'No arguments';
+is warning_diagnostics(), undef, 'No arguments';
 
 if ( eval { CLASS->warning_diagnostics( 'fubar' ); 1 } ) {
     fail 'Warning category fubar should produce an exception';
@@ -31,7 +31,7 @@ if ( eval { CLASS->warning_diagnostics( 'fubar' ); 1 } ) {
     like $@, qr<Unknown warnings category fubar\b>, 'fubar';
 }
 
-is CLASS->warning_diagnostics( 'exiting' ), <<'EOD', 'exiting';
+is warning_diagnostics( 'exiting' ), <<'EOD', 'exiting';
 =over
 
 =item No Exit
@@ -52,7 +52,7 @@ can not read your mind.
 =back
 EOD
 
-is CLASS->warning_diagnostics( 'io' ), <<'EOD', 'io';
+is warning_diagnostics( 'io' ), <<'EOD', 'io';
 =over
 
 =item Vulcan mind meld interface not active
@@ -79,7 +79,7 @@ can not read your mind.
 =back
 EOD
 
-is CLASS->warning_diagnostics( qw{ closed no-closed } ),
+is warning_diagnostics( qw{ closed no-closed } ),
     undef, 'closed no-closed';
 
 is CLASS->warning_diagnostics( qw{ syntax } ),
@@ -102,6 +102,17 @@ EOD
 
 is CLASS->warning_diagnostics_exact( qw{ syntax } ),
     <<'EOD', q<warning_diagnostics_exact() excludes sub-categories>;
+=over
+
+=item Not valid Perl
+
+(W syntax) This code makes no sense at all.
+
+=back
+EOD
+
+is warning_diagnostics( { exact => 1 }, qw{ syntax } ),
+    <<'EOD', q/warning_diagnostics( { exact => 1 } ) excludes sub-categories/;
 =over
 
 =item Not valid Perl
