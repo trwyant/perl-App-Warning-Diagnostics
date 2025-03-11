@@ -100,6 +100,19 @@ actually mean by it.
 =back
 EOD
 
+is warning_diagnostics( { brief => 1 }, qw{ syntax } ),
+    <<'EOD', q<syntax can find things assigned directly to 'syntax'>;
+=over
+
+=item Not valid Perl (W syntax)
+
+=item This code is ambiguous (W ambiguous)
+
+=item This code has more than one valid parse (W ambiguous)
+
+=back
+EOD
+
 is CLASS->warning_diagnostics_exact( qw{ syntax } ),
     <<'EOD', q<warning_diagnostics_exact() excludes sub-categories>;
 =over

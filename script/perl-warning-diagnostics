@@ -18,7 +18,7 @@ my %opt = (
     render	=> 1,
 );
 
-my @lgl_opt = qw{ complete|completion=s exact! pager! render! };
+my @lgl_opt = qw{ brief! complete|completion=s exact! pager! render! };
 
 GetOptions( \%opt,
     @lgl_opt,
@@ -36,6 +36,7 @@ if ( $opt{complete} ) {
 
 defined( my $raw_pod = warning_diagnostics(
 	{
+	    brief	=> $opt{brief},
 	    exact	=> $opt{exact},
 	},
 	@ARGV
@@ -128,6 +129,12 @@ perl-warning-diagnostics - List diagnostics enabled by specified warning categor
  perl-warning-diagnostics --version
 
 =head1 OPTIONS
+
+=head2 --brief
+
+If this Boolean option is asserted, only the first line of each
+diagnostic is displayed, with the severity and category (or categories)
+appended in parentheses.
 
 =head2 --complete
 

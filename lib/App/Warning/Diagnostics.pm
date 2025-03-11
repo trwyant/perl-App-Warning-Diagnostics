@@ -316,14 +316,39 @@ sub _warning_diagnostics {
     $diagnostic
 	or __read_pod();
 
+    my $mapper = $opt->{brief} ? \&_map_diag_brief : \&_map_diag;
+
     my @pod =
-	map { $_->[ DIAG_POD ] }
+	map { $mapper->() }
 	grep { _want_diag( \%want_diag, $_ ) } @{ $diagnostic };
 
     wantarray
 	and return @pod;
 
     return join '', "=over\n\n", @pod, "=back\n";
+}
+
+sub _map_diag {
+    return $_->[ DIAG_POD ];
+}
+
+sub _map_diag_brief {
+    # NOTE that we need to jump through this particular hoop because we
+    # might get two (or more) consecutive =item paragraphs, followed by
+    # text that applies to both (or all) of them.
+    my $rslt;
+    foreach my $line ( split /\n/, $_->[ DIAG_POD ] ) {
+	index $line, '='
+	    and next;
+	index $line, '=item'
+	    and last;
+	$rslt .= sprintf "%s (%s %s)\n\n",
+	    $line,
+	    $_->[ DIAG_SEV ],
+	    join( ', ', @{ $_->[ DIAG_CAT ] } ),
+	    ;
+    }
+    return $rslt;
 }
 
 # The following is verbatim from diagnostics.pm
@@ -632,10 +657,16 @@ The following options are supported:
 
 =over
 
+=item brief
+
+This Boolean option causes only the first line of each diagnostic to be
+returned, with severity and category (or categories) appended in
+parentheses.
+
 =item exact
 
-This causes sub-categories of specified warnings to be excluded from the
-return.
+This Boolean option causes sub-categories of specified warnings to be
+excluded from the return.
 
 =back
 
