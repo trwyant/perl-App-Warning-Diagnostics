@@ -328,7 +328,7 @@ sub _warning_diagnostics {
 
 # The following is verbatim from diagnostics.pm
 
-## VERBATIM START diagnostics
+## VERBATIM BEGIN diagnostics
 my $privlib = $Config{privlibexp};
 if ($^O eq 'VMS') {
     require VMS::Filespec;
