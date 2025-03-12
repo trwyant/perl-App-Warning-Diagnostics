@@ -1,3 +1,18 @@
+0.000_018	2025-03-12	T. R. Wyant
+    Add an 'all' option, for all diagnostics.
+
+    Add a 'brief' option, for only the first line of each diagnostic.
+    The severity and category (or categirues) are appended, in
+    parentheses.
+
+    Add xt/author/verbatim.t This is based on currently-unpublished
+    Test-File-Verbatim.
+
+    Allow option hash ref as first arg of warning_diagnostics().
+    
+    Depricate warning_diagnostics_exact(), since this is now possible via
+    the options hash argument of warning_diagnostics().
+
 0.000_017	2025-03-09	T. R. Wyant
     Update warnings list to version 1.70 (perl 5.40).
 
