@@ -149,6 +149,36 @@ actually mean by it.
 =back
 EOD
 
+is warning_diagnostics( { all => 1 } ), <<'EOD', 'All diagnostics';
+=over
+
+=item No Exit
+
+(W exiting) Because this is Hell -- or the MTA.
+
+=item Not valid Perl
+
+(W syntax) This code makes no sense at all.
+
+=item This code is ambiguous
+
+=item This code has more than one valid parse
+
+(W ambiguous) This code is valid Perl, but I do not know what you
+actually mean by it.
+
+=item Vulcan mind meld interface not active
+
+(W unopened) I do not understand the intention of this code because I
+can not read your mind.
+
+=item You can check out any time you like but you can never leave
+
+(W closed) Because the doors are locked.
+
+=back
+EOD
+
 done_testing;
 
 1;

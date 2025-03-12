@@ -285,6 +285,25 @@ sub warning_diagnostics_exact {	## no critic (RequireArgUnpacking)
 sub _warning_diagnostics {
     my ( $opt, @warning ) = @_;
 
+    $diagnostic
+	or __read_pod();
+
+    my $mapper = $opt->{brief} ? \&_map_diag_brief : \&_map_diag;
+
+    my @pod = map { $mapper->() } $opt->{all} ?
+	_warning_diagnostics_all() :
+	_warning_diagnostics_wanted( $opt, @warning )
+	or return;
+
+    wantarray
+	and return @pod;
+
+    return join '', "=over\n\n", @pod, "=back\n";
+}
+
+sub _warning_diagnostics_wanted {
+    my ( $opt, @warning ) = @_;
+
     my $bits = $opt->{exact} ? \%my_bits : \%builtin;
 
     my $mask = $warnings::NONE;
@@ -312,20 +331,11 @@ sub _warning_diagnostics {
 	}
     }
 
+    return grep { _want_diag( \%want_diag, $_ ) } @{ $diagnostic };
+}
 
-    $diagnostic
-	or __read_pod();
-
-    my $mapper = $opt->{brief} ? \&_map_diag_brief : \&_map_diag;
-
-    my @pod =
-	map { $mapper->() }
-	grep { _want_diag( \%want_diag, $_ ) } @{ $diagnostic };
-
-    wantarray
-	and return @pod;
-
-    return join '', "=over\n\n", @pod, "=back\n";
+sub _warning_diagnostics_all {
+    return @{ $diagnostic };
 }
 
 sub _map_diag {
@@ -657,6 +667,11 @@ The following options are supported:
 
 =over
 
+=item all
+
+This Boolean option causes all diagnostics to be returned. Arguments and
+the L<exact|/exact> option will be ignored if this option is asserted.
+
 =item brief
 
 This Boolean option causes only the first line of each diagnostic to be
@@ -666,7 +681,7 @@ parentheses.
 =item exact
 
 This Boolean option causes sub-categories of specified warnings to be
-excluded from the return.
+excluded from the return unless specified explicitly.
 
 =back
 

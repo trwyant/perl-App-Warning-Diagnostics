@@ -130,6 +130,11 @@ perl-warning-diagnostics - List diagnostics enabled by specified warning categor
 
 =head1 OPTIONS
 
+=head2 --all
+
+If this Boolean option is asserted, all diagnostics are displayed, and
+the L<--exact|/--exact> option and any arguments will be ignored.
+
 =head2 --brief
 
 If this Boolean option is asserted, only the first line of each
