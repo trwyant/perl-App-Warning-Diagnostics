@@ -10,14 +10,23 @@ use Test::More 0.88;	# Because of done_testing();
 
 use constant REF_ARRAY	=> ref [];
 
+my %introduced = (
+    illegalproto	=> '5.012',
+    imprecision		=> '5.012',
+    inplace		=> '5.006',
+    internal		=> '5.006',
+    io			=> '5.006',
+);
+
 complete_ok( 'foo xyzzy', [], q<Complete 'foo xyzzy'> );
 
 complete_ok( 'foo --bar', [], q<Complete 'foo --bar'> );
 
-complete_ok( 'foo i',
-    [ qw{ illegalproto imprecision inplace internal io } ],
-    q<Complete 'foo i'>,
-);
+{
+    my @want = grep { "$]" >= $introduced{$_} }
+	qw{ illegalproto imprecision inplace internal io };
+    complete_ok( 'foo i', \@want, q<Complete 'foo i'> );
+}
 
 complete_ok(
     [ 'foo -b', undef, qw{ bar! baz=s } ],
