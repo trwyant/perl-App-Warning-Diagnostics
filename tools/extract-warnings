@@ -19,6 +19,8 @@ GetOptions( \%opt,
 # We initialize with warnings that have been removed
 my %possible_builtins = map { $_ => 1 }
     'chmod',				# Removed in 5.8
+    'deprecated::apostrophe_as_package_separator',	# Removed in 5.42
+    'deprecated::smartmatch',		# Removed in 5.42
     'experimental::alpha_assertions',	# Removed in 5.38
     'experimental::autoderef',		# Removed in 5.24
     'experimental::bitwise',		# Removed in 5.38

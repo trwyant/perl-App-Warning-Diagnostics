@@ -47,7 +47,7 @@ my %builtin;	# All builtin warnings (a guess)
 ## BEGIN REPLACEMENT
 
 # The following code is replaced by tools/extract-warnings. Do not edit.
-# Generated 2025-03-09 by Perl v5.40.1 using warnings 1.70
+# Generated 2025-07-14 by Perl v5.42.0 using warnings 1.74
 
 my @possible_builtins = qw{
     all
@@ -83,6 +83,8 @@ my @possible_builtins = qw{
     experimental::extra_paired_delimiters
     experimental::for_list
     experimental::isa
+    experimental::keyword_all
+    experimental::keyword_any
     experimental::lexical_subs
     experimental::lexical_topic
     experimental::postderef
@@ -148,6 +150,8 @@ my @possible_builtins = qw{
 };
 
 ## END REPLACEMENT
+
+
 
 
 
