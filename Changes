@@ -1,3 +1,8 @@
+0.000_019	2025-07-17	T. R. Wyant
+    Update canned warnings table to 5.42.0.
+
+    Correct completion logic test for old Perls.
+
 0.000_018	2025-03-12	T. R. Wyant
     Add an 'all' option, for all diagnostics.
 
