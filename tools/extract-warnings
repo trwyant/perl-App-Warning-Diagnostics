@@ -12,92 +12,370 @@ our $VERSION = '0.000_019';
 
 my %opt;
 
-GetOptions( \%opt,
-    help => sub { pod2usage( { -verbose => 2 } ) },
-) or pod2usage( { -verbose => 0 } );
+unless ( caller ) {	# We're a modulino
+    my %opt;
+    GetOptions( \%opt,
+	qw{ age=i base_uri|base-uri|base-url=s cache=s
+	debug! min_major|min-major=i update! verbose! },
+	help => sub { pod2usage( { -verbose => 2 } ) },
+    ) or pod2usage( { -verbose => 0 } );
+    my $update = delete $opt{update};
+    my $xw = extract::warnings->new( %opt );
+    my $data = $xw->build_warnings_table();
+    my $replacement = $xw->generate_module_code( $data );
+    if ( $update ) {
+	my $file = 'lib/App/Warning/Diagnostics.pm';
+	local $/ = undef;	# Slurp mode
+	open my $fh, '<', $file
+	    or die "Unable to open $file for input: $!\n";
+	my $source = <$fh>;
+	close $fh;
 
-# We initialize with warnings that have been removed
-my %possible_builtins = map { $_ => 1 }
-    'chmod',				# Removed in 5.8
-    'deprecated::apostrophe_as_package_separator',	# Removed in 5.42
-    'deprecated::smartmatch',		# Removed in 5.42
-    'experimental::alpha_assertions',	# Removed in 5.38
-    'experimental::autoderef',		# Removed in 5.24
-    'experimental::bitwise',		# Removed in 5.38
-    'experimental::const_attr',		# Removed in 5.40
-    'experimental::for_list',		# Removed in 5.40
-    'experimental::isa',		# Removed in 5.38
-    'experimental::lexical_subs',	# Removed in 5.38
-    'experimental::lexical_topic',	# Removed in 5.24
-    'experimental::postderef',		# Removed in 5.38
-    'experimental::script_run',		# Removed in 5.38
-    'experimental::signatures',		# Removed in 5.38
-    'experimental::smartmatch',		# Removed in 5.38
-    'umask',				# Removed in 5.8
-    'y2k',				# Removed in 5.10
-    ;
+	# The following regular expression is a bit convoluted in order to
+	# get Perl to parse it correctly:
+	# * I could not just qualify it /sm and omit superfluous spaces,
+	#   because Perl parsed the resultant '... $.*? ...' as containing
+	#   punctuation variable $.
+	# * I could not throw \Q...\E around the hash marks, because that
+	#   tickles an outstanding bug in the regular expression parser.
+	$source =~ s/ ^ [#][#] \Q BEGIN REPLACEMENT\E $ .*?
+	^ [#][#] \Q END REPLACEMENT\E (?: \n | \z ) /$replacement/smx
+	    or die "Failed to replace code\n";
+	open $fh, '>', $file
+	    or die "Unable to open $file for output: $!\n";
+	print { $fh } $source;
+	close $fh;
+    } else {
+	print $replacement;
+    }
+    exit;
+}
+
+package extract::warnings;
+
+use Archive::Tar;
+use Carp;
+use HTML::TreeBuilder;
+use LWP::UserAgent;
+use PPI::Document;
+use Scalar::Util qw{ refaddr };
+use Time::Piece;
+use version;
+use YAML ();
+
+use constant REF_HASH	=> ref {};
 
 {
-    local $/ = undef;	# Slurp mode
-    open my $fh, '<', $INC{'warnings.pm'}
-	or die "Unable to open warnings.pm: $!\n";
-    my $source = <$fh>;
-    close $fh;
-    # (
-    $source =~ m/ ( ^ \Qour %Bits = (\E [^)]+ \); $ ) /smx
-	or die "Unable to find definition of %Offsets hash\n";
-    my $hash = $1;
-
-    while ( $hash =~ m/ ' ( [\w:]+ ) ' \s* => \s* "[^"]+" \s* , /smxg ) {
-	$possible_builtins{$1} = 1;
+    my %dflt;
+    BEGIN {
+	%dflt = (
+	    age		=> 86400,
+	    base_uri	=> 'http://www.cpan.org/src/5.0',
+	    cache	=> $ENV{PERL_WARNING_DIAGNOSTICS_CACHE},
+	    debug	=> 0,
+	    min_major	=> 6,
+	    verbose	=> 0,
+	);
+    }
+    sub new {
+	my ( $class, %arg ) = @_;
+	foreach ( keys %dflt ) {
+	    defined $arg{$_}
+		or $arg{$_} = $dflt{$_};
+	}
+	defined $arg{cache}
+	    or croak q/'cache' must be specified/;
+	-d $arg{cache}
+	    or mkdir $arg{cache}
+	    or croak "Failed to create directory $arg{cache}: $!";
+	$arg{min_major} < 6
+	    and $arg{min_major} = 6;
+	return bless \%arg, $class;
     }
 }
 
-my ( undef, undef, undef, $day, $mon, $yr ) = localtime;
-my $date = sprintf '%04d-%02d-%02d', $yr + 1900, $mon + 1, $day;
+sub build_warnings_table {
+    my ( $self ) = @_;
+    my $distro = $self->catalog_versions();
 
-my $replacement = <<"EOD";
+    my $master_table = {};
+    my $analyzed = {};
+    my $data_file = "$self->{cache}/perl-warnings-table.yml";
+    if ( -e $data_file ) {
+	my $data = YAML::LoadFile( $data_file );
+	$master_table = $data->{warnings};
+	$analyzed = { map { $_ => 1 } @{ $data->{versions} } };
+    }
+
+    my $versions_added;
+    foreach my $key ( sort keys %{ $distro } ) {
+	$analyzed->{$key}
+	    and next;
+	$versions_added++;
+	my @files = 
+	    map { $_->{url} }
+	    sort { $b->{pref} <=> $a->{pref} }
+	    @{ $distro->{$key} };
+	my $path = $self->get_cached( { expire => 0, path => 1 }, @files );
+	$self->{verbose}
+	    and warn "$path\n";
+	my $warnings_table = $self->process_tar_file( $path );
+	foreach ( keys %{ $warnings_table } ) {
+	    defined $master_table->{$_}{introduced}
+		or $master_table->{$_}{introduced} = $key;
+	}
+	foreach ( keys %{ $master_table } ) {
+	    defined $warnings_table->{$_}
+		or $master_table->{$_}{removed} = $key
+	}
+    }
+
+    my $data = {
+	warnings	=> $master_table,
+	versions	=> [ sort keys %{ $distro } ],
+    };
+
+    $versions_added
+	and YAML::DumpFile( $data_file, $data );
+
+    return $data;
+}
+
+{
+    my $preference;
+    BEGIN {
+	$preference = {
+	    gz	=> 1,
+	    bz2	=> 2,
+	    xz	=> 3,
+	};
+    }
+
+    sub catalog_versions {
+	my ( $self ) = @_;
+
+	my $tree = HTML::TreeBuilder->new_from_content(
+	    $self->get_cached( { source => '' }, 'perl-source-index.html' ) );
+
+	my %distro;
+	foreach my $tag_set ( [ qw{ table tr } ], [ qw{ ul li } ] ) {
+
+	    my ( $aggregate, $detail ) = @{ $tag_set };
+
+	    my ( $table ) = $tree->look_down( _tag => $aggregate )
+		or next;
+
+	    foreach my $row ( $table->look_down( _tag => $detail ) ) {
+		my ( $link ) = $row->look_down( _tag => 'a' )
+		    or next;
+		my $url = $link->attr( 'href' );
+		$url =~ m/ [.] tar [.] ( \w+ ) \z /smx
+		    or next;
+		my $suffix = $1;
+		( my $perl = $url ) =~ s{ .* / }{}smx;
+		$perl =~ s/ \A perl -? //smx;
+		$perl =~ s/ [.] tar \b .* //smx;
+		my ( $release, $major, $minor, $rc ) =
+		$perl =~ m/ \A
+			( [0-9] ) [.]
+			( [0-9]+ ) [._]
+			( [0-9]+ )
+			(?: - (?: TRIAL | RC ) ( [0-9]+ ) )? /smx
+		    or next;
+		$major < $self->{min_major}
+		    and next;
+		defined $rc
+		    and next;
+		my $pref = $preference->{$suffix}
+		    or die "Bug - Suffix '.$suffix' unknown";
+		for ( $major, $minor ) {
+		    s/ \A 0+ //smx;
+		    $_ ||= '0';
+		}
+		my $key = sprintf '%d.%03d_%03d', $release, $major, $minor;
+		push @{ $distro{$key} }, {
+		    url		=> $url,
+		    pref	=> $pref,
+		};
+	    }
+	}
+
+	return \%distro;
+    }
+}
+
+{
+    my $want_sym;
+    BEGIN {
+	$want_sym = { map { $_ => 1 } qw{ %Offsets } };
+    }
+
+    sub find_warnings_table {
+	my ( $doc ) = @_;
+	foreach my $sym ( @{ $doc->find( 'PPI::Token::Symbol' ) || [] } ) {
+	    $want_sym->{ $sym->symbol() }
+		or next;
+
+	    my $sym_addr = refaddr( $sym );
+	    my $stmt = $sym->statement();
+	    while ( refaddr( my $leader = $stmt->child( 0 ) ) != $sym_addr ) {
+		$leader->delete();
+	    }
+	    my $next;
+	    if ( $next = $sym->snext_sibling()
+		    and $next->isa( 'PPI::Token::Operator' )
+		    and $next->content() eq ':' ) {
+		{
+		    my $this = $next;
+		    $next = $this->next_sibling();
+		    $this->delete();
+		    last unless $next;
+		    redo unless $next->isa( 'PPI::Token::Operator' ) &&
+			$next->content() eq '=';
+		}
+	    }
+	    my %Offsets;
+	    {
+		local $@ = undef;
+		eval "$stmt; 1;"
+		    or die "Failed to eval %Offsets: $@";
+	    }
+	    return \%Offsets;
+	}
+	return;
+    }
+}
+
+sub generate_module_code {
+    my ( $self, $data ) = @_;
+    my $date = localtime->strftime( '%Y-%m-%d' );
+    my $version = version->parse( $data->{versions}[-1] )->normal();
+    my $rslt = <<"EOD";
 ## BEGIN REPLACEMENT
 
-# The following code is replaced by tools/extract-warnings. Do not edit.
-# Generated $date by Perl $^V using warnings $warnings::VERSION
+# The following code is replaced by tools/extract-warnings --update.
+# Do not edit.
+# Generated $date by Perl $^V, including Perls up to $version.
 
 my \@possible_builtins = qw{
 EOD
 
-foreach ( sort keys %possible_builtins ) {
-    $replacement .= "    $_\n";
-}
-
-$replacement .= <<'EOD';
+    foreach ( sort keys %{ $data->{warnings} } ) {
+	$rslt .= "    $_\n";
+    }
+    $rslt .= <<'EOD';
 };
 
 ## END REPLACEMENT
 EOD
+    return $rslt;
+}
 
 {
-    my $file = 'lib/App/Warning/Diagnostics.pm';
-    local $/ = undef;	# Slurp mode
-    open my $fh, '<', $file
-	or die "Unable to open $file for input: $!\n";
-    my $source = <$fh>;
-    close $fh;
+    my $ua;
 
-    # The following regular expression is a bit convoluted in order to
-    # get Perl to parse it correctly:
-    # * I could not just qualify it /sm and omit superfluous spaces,
-    #   because Perl parsed the resultant '... $.*? ...' as containing
-    #   punctuation variable $.
-    # * I could not throw \Q...\E around the hash marks, because that
-    #   tickles an outstanding bug in the regular expression parser.
-    $source =~ s/ ^ [#][#] \Q BEGIN REPLACEMENT\E $
-    .*?
-    ^ [#][#] \Q END REPLACEMENT\E $ /$replacement/smx
-	or die "Failed to replace code\n";
-    open $fh, '>', $file
-	or die "Unable to open $file for output: $!\n";
-    print { $fh } $source;
-    close $fh;
+    sub get_cached {
+	my ( $self, @file_list ) = @_;
+
+	my $opt = ( REF_HASH eq ref $file_list[0] ) ? shift @file_list : {};
+	@file_list
+	    or confess( 'Bug - no files specified' );
+	my $source = defined $opt->{source} ?
+	    $opt->{source} :
+	    $file_list[0];
+	my $expire = defined $opt->{expire} ? $opt->{expire} : 1;
+
+	foreach my $file ( @file_list ) {
+	    my $path = join '/', $self->{cache}, $file;
+
+	    my @stat;
+	    @stat = stat $path
+		and ( ! $expire || $stat[9] + $self->{age} > time )
+		and do {
+		$self->{debug}
+		    and warn "Debug - found $path";
+		$opt->{path}
+		    and return $path;
+		my $enc = media_type_encoding( guess_media_type( $path ) );
+		$self->{debug}
+		    and warn "Debug - reading $path with encoding $enc";
+		open my $fh, "<$enc", $path
+		    or croak "Failed to open $path for input: $!";
+		local $/ = undef;
+		return <$fh>;
+	    };
+	}
+
+	my $uri = join '/', $self->{base_uri}, $source;
+
+	$ua ||= LWP::UserAgent->new();
+
+	$self->{debug}
+	    and warn "Debug - Downloading $uri";
+	my $resp = $ua->get( $uri );
+	$resp->is_success()
+	    or croak "Failed to fetch $uri: ", $resp->status_line();
+	# my ( $last_modified ) = $resp->header( 'Last-Modified' );
+	my $enc = media_type_encoding( $resp->header( 'Content-Type' ));
+	# XXX does this work for application/something? We'll see.
+	my $content = $resp->decoded_content();
+	my $path = join '/', $self->{cache}, $file_list[0];
+	{
+	    $self->{debug}
+		and warn "Debug - Writing $path with encoding $enc";
+	    open my $fh, ">$enc", $path
+		or croak "Failed to open $path for output: $!";
+	    print { $fh } $content;
+	}
+	$opt->{path}
+	    and return $path;
+	return $content;
+    }
+}
+
+sub process_tar_file {
+    my ( $self, $path ) = @_;
+    my $tar = Archive::Tar->new();
+    $tar->read( $path );
+    foreach my $elem ( $tar->list_files() ) {
+	$elem =~ m{ \A [^/]+ /lib/warnings\.pm \z }smx
+	    or next;
+	my $doc = PPI::Document->new( \$tar->get_content( $elem ) );
+	my $table = return find_warnings_table( $doc )
+	    or croak "No warnings table found in $elem in $path";
+	return $table;
+    }
+    croak "No warnings.pm found in $path";
+}
+
+sub media_type_encoding {
+    local $_ = $_[0];
+    defined
+	or return ':raw';
+    return m{ \A text (?: / | \z ) }smx ? ':encoding(utf-8)' : ':raw';
+}
+
+{
+    my %suffix;
+    BEGIN {
+	%suffix = (
+	    html	=> 'text/html',
+	    txt		=> 'text/txt',
+	    gz		=> 'application/gzip',
+	    bz2		=> 'application/bzip2',
+	    xz		=> 'application/xz',
+	    tar		=> 'application/tar',
+	);
+    }
+
+    # FIXME I know I saw a module that inferred MIME type. I just don't
+    # know what it is. The sub name is from LWP::MediaType, which I do
+    # not have installed, and which I believe is not the module I
+    # remember, because the remembered interface was different.
+    sub guess_media_type {
+	my @parts = split /[.]/, $_[0];
+	return $suffix{$parts[-1]} || 'application/unknown';
+    }
 }
 
 __END__
@@ -114,10 +392,72 @@ extract-warnings - Extract warning categories from warnings.pm.
 
 =head1 OPTIONS
 
+=head2 --age
+
+ --age 43200
+
+This option specifies the age of cached data in seconds.
+
+The default is C<--age 86400>, i.e. one day.
+
+=head2 --base-uri
+
+ --base-uri https://my-perl-repository/src/5.0
+
+This option specifies the URI from which all data are to be fetched.
+
+The default is C<--base-uri http://www.cpan.org/src/5.0>, and any
+alternate must have a comparable structure.
+
+=head2 --cache
+
+ --cache ~/perl/warnings/cache
+
+This B<required> option (sic) specifies the directory used to store
+local copies of data required by this script. B<Note> that this script
+has no tilde-expansion code; the example assumes expansion by the shell.
+
+The default is the value of environment variable
+C<PERL_WARNING_DIAGNOSTICS_CACHE>, which also needs tilde-expansion done
+on it B<before> this code sees it.
+
+=head2 --debug
+
+This Boolean option is B<unsupported> in the sense that tha author
+reserves the right to alter or retract it at any time, and makes no
+commitment as to what will happen if it actually appears on the command
+line. B<You have been warned.>
+
 =head2 --help
 
 This option displays the documentation for this script. The script then
 exits.
+
+=head2 --min-major
+
+ --min-major 10
+
+This option specifies the minimum major Perl version to consider. The
+author strongly reccomends against its use except for troubleshooting.
+Values less than C<6> will be silently set to C<6>, since Perl 5.6 is
+the first Perl to support C<use warnings>.
+
+The default is C<--min-major 6>.
+
+=head2 --update
+
+If this Boolean option is asserted, F<lib/App/Warning/Diagnostics.pm> is
+actually updated with the code generated by this script. Otherwise the
+code is simply sent to standard out.
+
+The default is C<--no-update>.
+
+=head2 --verbose
+
+If this Boolean option is asserted, progress information is written to
+standard error.
+
+The default is C<--no-verbose>.
 
 =head2 --version
 
@@ -125,18 +465,86 @@ This option displays the version of this script. The script then exits.
 
 =head1 DETAILS
 
-This Perl code extracts the warning categories from F<warnings.pm> and
-inserts them into F<lib/App/Warning/Diagnostics.pm>. It should be run
-under the highest version of Perl you can get your hands on.
+This Perl builds a consolidated table of every C<warnings> category that
+ever existed, with the Perl version in which each was introduced, and
+the version it was removed if applicable. Optionally (with script option
+L<--update|/--update>) F<lib/App/Warning/Diagnostics.pm> will be
+updated.
 
-The warnings found in F<warnings.pm> are supplemented with warnings that
-have been removed, for the benefit of older Perls.
+The implementation is as a modulino, so that (I hope) it can be used not
+only to maintain this table but to test whether maintenance is needed.
 
-This is an incredible kluge, but there appears to be no way to extract
-the built-in warning categories from F<warnings.pm>. Oh, there are
-various promising-looking things accessable (such as
-C<%warnings::Bits>), but these are modified by C<warnings::register>,
-and there is no way to ensure that we are accessing a pristine copy.
+This code makes use of a cache directory, which can be specified as an
+option to the script, an argument to the C<new()> method of the
+provied C<extract::warnings> class, or via environment variable
+C<PERL_WARNING_DIAGNOSTICS_CACHE>. This cache can become large, since it
+will a Perl distribution for every Perl version since Perl 5.6.0,
+inclusive.
+
+=head1 ALGORIGHM
+
+This section documents the algorithm used to generate the table. It is
+for information only, and the algorithm can be changed without notice.
+
+=over
+
+=item 1) Optain a list of all Perl distributions starting with 5.5.0.
+
+This comes by default from C<http://www.cpan.org/src/5.0>, and is stored
+in the cache as F<perl-source-index.html>. By default, this cached copy
+expires in a day.
+
+=item 2) Parse the list of Perl distributions.
+
+This is done using L<HTML::TreeBuilder|HTML::TreeBuilder>, plus sine
+ad-hocery to determine those links which actually point to Perl
+distributions. The Perl version is determined from the name of the
+distribution, and the names of all distributions are saved.
+
+=item 3) Download any Perl versions missing from the cache.
+
+The cache is scanned for the Perl versions present, and any missing
+versions are downloaded. If there are multiple distributions are present
+for a given Perl version, the first available of F<.xz>, F<.bz2>, or
+F<.gz> is downloaded.
+
+=item 4) Load the data cached from the previous run.
+
+This is F<perl-warnings-table.yml>. The actual data present and the
+serialization format are subject to change.
+
+=item 5) Update the cached data
+
+The cache directory is scanned for Perl distributions. For any Perl
+versions not represented in the cached data, F<lib/warnings.pm> is
+parsed by L<PPI|PPI>, its warnings category table is located and
+C<eval()>-ed, and merged into the cached data. The merge is done by:
+
+=over
+
+=item 1. Add categories that do not exist
+
+The version introduced will be set to that of the Perl distribution
+being analyzed.
+
+=item 2. Close out any categoies that no longer exist
+
+If the version removed is not already set, it will be set to that of the
+Perl distribution being analyzed.
+
+=back
+
+If any updates were actually done, the cached data will be rewritten.
+
+=item 6) Generate the list of all known warnings categories.
+
+This is represented as Perl code -- to wit an array declaration
+initialized to a C<qw{ }> list of the sorted categories from the
+consolidated table.
+
+=item 7) Optionally update the code.
+
+=back
 
 =head1 AUTHOR
 

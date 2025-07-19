@@ -46,12 +46,14 @@ my %builtin;	# All builtin warnings (a guess)
 
 ## BEGIN REPLACEMENT
 
-# The following code is replaced by tools/extract-warnings. Do not edit.
-# Generated 2025-07-14 by Perl v5.42.0 using warnings 1.74
+# The following code is replaced by tools/extract-warnings --update.
+# Do not edit.
+# Generated 2025-07-19 by Perl v5.42.0, including Perls up to v5.42.0.
 
 my @possible_builtins = qw{
     all
     ambiguous
+    assertions
     bareword
     chmod
     closed
@@ -68,10 +70,13 @@ my @possible_builtins = qw{
     deprecated::unicode_property_name
     deprecated::version_downgrade
     digit
+    everything
     exec
     exiting
     experimental
+    experimental::all
     experimental::alpha_assertions
+    experimental::any
     experimental::args_array_with_signatures
     experimental::autoderef
     experimental::bitwise
@@ -98,6 +103,9 @@ my @possible_builtins = qw{
     experimental::try
     experimental::uniprop_wildcards
     experimental::vlb
+    experimental::win32_perlio
+    experimental:lexical_subs
+    extra
     glob
     illegalproto
     imprecision
@@ -146,6 +154,7 @@ my @possible_builtins = qw{
     untie
     utf8
     void
+    void_unusual
     y2k
 };
 
