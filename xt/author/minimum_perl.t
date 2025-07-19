@@ -30,6 +30,7 @@ my $min_perl_vers = version->parse( $min_perl );
 
 my $manifest = ExtUtils::Manifest::maniread();
 
+my $failures;
 foreach my $fn ( sort keys %{ $manifest } ) {
     $fn =~ m{ \A xt/ }smx
 	and next;
@@ -37,7 +38,8 @@ foreach my $fn ( sort keys %{ $manifest } ) {
 	or next;
     my $doc = Perl::MinimumVersion->new( slurp( $fn ) );
     cmp_ok $doc->minimum_version(), 'le', $min_perl,
-	"$fn works under Perl $min_perl";
+	"$fn works under Perl $min_perl"
+	or $failures++;
     my $ppi_doc = $doc->Document();
     foreach my $inc (
 	@{ $ppi_doc->find( 'PPI::Statement::Include' ) || [] } ) {
@@ -48,6 +50,16 @@ foreach my $fn ( sort keys %{ $manifest } ) {
 	last;
     }
 }
+
+$failures
+    and diag <<'EOD';
+
+For more information on the failures, run
+
+ $ perlver --blame <file-name>
+
+on any failing files.
+EOD
 
 done_testing;
 
