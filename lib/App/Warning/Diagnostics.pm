@@ -151,12 +151,6 @@ my @possible_builtins = qw{
 
 ## END REPLACEMENT
 
-
-
-
-
-
-
 # The reason for going through this loop is that we may be running under
 # an earlier version of Perl than the one that generated the above, so
 # we need to figure out which of the above list are actually recognized
