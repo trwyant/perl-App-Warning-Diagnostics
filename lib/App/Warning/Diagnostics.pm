@@ -48,7 +48,7 @@ my %builtin;	# All builtin warnings (a guess)
 
 # The following code is replaced by tools/extract-warnings --update.
 # Do not edit.
-# Generated 2025-07-19 by Perl v5.42.0, including Perls up to v5.42.0.
+# Generated 2025-07-21 by Perl v5.42.0, including Perls up to v5.43.1.
 
 my @possible_builtins = qw{
     all
