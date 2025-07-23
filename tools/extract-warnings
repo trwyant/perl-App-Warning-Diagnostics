@@ -16,38 +16,15 @@ unless ( caller ) {	# We're a modulino
     my %opt;
     GetOptions( \%opt,
 	qw{ age=i base_uri|base-uri|base-url=s cache=s
-	debug! min_major|min-major=i update! verbose! },
+	debug! format=s min_major|min-major=i update! verbose! },
 	help => sub { pod2usage( { -verbose => 2 } ) },
     ) or pod2usage( { -verbose => 0 } );
-    my $update = delete $opt{update};
     my $xw = extract::warnings->new( %opt );
     my $data = $xw->build_warnings_table();
-    my $replacement = $xw->generate_module_code( $data );
-    if ( $update ) {
-	my $file = 'lib/App/Warning/Diagnostics.pm';
-	local $/ = undef;	# Slurp mode
-	open my $fh, '<', $file
-	    or die "Unable to open $file for input: $!\n";
-	my $source = <$fh>;
-	close $fh;
-
-	# The following regular expression is a bit convoluted in order to
-	# get Perl to parse it correctly:
-	# * I could not just qualify it /sm and omit superfluous spaces,
-	#   because Perl parsed the resultant '... $.*? ...' as containing
-	#   punctuation variable $.
-	# * I could not throw \Q...\E around the hash marks, because that
-	#   tickles an outstanding bug in the regular expression parser.
-	$source =~ s/ ^ [#][#] \Q BEGIN REPLACEMENT\E $ .*?
-	^ [#][#] \Q END REPLACEMENT\E (?: \n | \z ) /$replacement/smx
-	    or die "Failed to replace code\n";
-	open $fh, '>', $file
-	    or die "Unable to open $file for output: $!\n";
-	print { $fh } $source;
-	close $fh;
-    } else {
-	print $replacement;
-    }
+    $xw->write_warnings_cache( $data );
+    my $replacement = $xw->format_output( $data );
+    $opt{update}
+	or print $replacement;
     exit;
 }
 
@@ -56,6 +33,7 @@ package extract::warnings;
 use Archive::Tar;
 use Carp;
 use HTML::TreeBuilder;
+use List::Util qw{ max };
 use LWP::UserAgent;
 use PPI::Document;
 use Scalar::Util qw{ refaddr };
@@ -73,7 +51,9 @@ use constant REF_HASH	=> ref {};
 	    base_uri	=> 'http://www.cpan.org/src/5.0',
 	    cache	=> $ENV{PERL_WARNING_DIAGNOSTICS_CACHE},
 	    debug	=> 0,
+	    format	=> 'warnings',
 	    min_major	=> 6,
+	    update	=> 0,
 	    verbose	=> 0,
 	);
     }
@@ -90,19 +70,44 @@ use constant REF_HASH	=> ref {};
 	    or croak "Failed to create directory $arg{cache}: $!";
 	$arg{min_major} < 6
 	    and $arg{min_major} = 6;
+	$arg{_format} = __PACKAGE__->can( "_format_$arg{format}" )
+	    or croak "Unknown format '$arg{format}'";
 	return bless \%arg, $class;
     }
 }
 
-sub build_warnings_table {
+sub warnings_cache_path {
     my ( $self ) = @_;
+    return "$self->{cache}/perl-warnings-table.yml";
+}
+
+sub read_warnings_cache {
+    my ( $self ) = @_;
+    my $data_file = $self->warnings_cache_path();
+    -e $data_file
+	or return;
+    return YAML::LoadFile( $data_file );
+}
+
+sub write_warnings_cache {
+    my ( $self, $data ) = @_;
+    $data
+	or croak '$data not specified';
+    $data->{versions_added}
+	or return;
+    delete $data->{versions_added};
+    my $data_file = $self->warnings_cache_path();
+    YAML::DumpFile( $data_file, $data );
+    return;
+}
+
+sub build_warnings_table {
+    my ( $self, $data ) = @_;
     my $distro = $self->catalog_versions();
 
     my $master_table = {};
     my $analyzed = {};
-    my $data_file = "$self->{cache}/perl-warnings-table.yml";
-    if ( -e $data_file ) {
-	my $data = YAML::LoadFile( $data_file );
+    if ( $data ||= $self->read_warnings_cache() ) {
 	$master_table = $data->{warnings};
 	$analyzed = { map { $_ => 1 } @{ $data->{versions} } };
     }
@@ -130,15 +135,11 @@ sub build_warnings_table {
 	}
     }
 
-    my $data = {
-	warnings	=> $master_table,
+    return {
 	versions	=> [ sort keys %{ $distro } ],
+	versions_added	=> $versions_added,
+	warnings	=> $master_table,
     };
-
-    $versions_added
-	and YAML::DumpFile( $data_file, $data );
-
-    return $data;
 }
 
 {
@@ -246,7 +247,12 @@ sub build_warnings_table {
     }
 }
 
-sub generate_module_code {
+sub format_output {
+    my ( $self, $data ) = @_;
+    goto $self->{_format};
+}
+
+sub _format_warnings {
     my ( $self, $data ) = @_;
     my $date = localtime->strftime( '%Y-%m-%d' );
     my $version = version->parse( $data->{versions}[-1] )->normal();
@@ -268,6 +274,60 @@ EOD
 
 ## END REPLACEMENT
 EOD
+    if ( $self->{update} ) {
+	my $file = 'lib/App/Warning/Diagnostics.pm';
+	local $/ = undef;	# Slurp mode
+	open my $fh, '<', $file
+	    or die "Unable to open $file for input: $!\n";
+	my $source = <$fh>;
+	close $fh;
+
+	# The following regular expression is a bit convoluted in order to
+	# get Perl to parse it correctly:
+	# * I could not just qualify it /sm and omit superfluous spaces,
+	#   because Perl parsed the resultant '... $.*? ...' as containing
+	#   punctuation variable $.
+	# * I could not throw \Q...\E around the hash marks, because that
+	#   tickles an outstanding bug in the regular expression parser.
+	$source =~ s/ ^ [#][#] \Q BEGIN REPLACEMENT\E $ .*?
+	^ [#][#] \Q END REPLACEMENT\E (?: \n | \z ) /$rslt/smx
+	    or die "Failed to replace code\n";
+	open $fh, '>', $file
+	    or die "Unable to open $file for output: $!\n";
+	print { $fh } $source;
+	close $fh;
+    }
+    return $rslt;
+}
+
+sub _format_minimum {
+    my ( $self, $data ) = @_;
+    my $date = localtime->strftime( '%Y-%mPerennial	Ancho Chili Imperial Stout	Abraxas	10.5%-%d' );
+    my $version = version->parse( $data->{versions}[-1] )->normal();
+    my $rslt = <<"EOD";
+my \%warnings = ( # Generated $date, including Perls to $version
+EOD
+    my $wid = max( map { length } keys %{ $data->{warnings} } ) + 2;
+    foreach my $category ( sort keys %{ $data->{warnings} } ) {
+	my $version = $data->{warnings}{$category}{introduced};
+	# Perl versions are release.major.minor.
+	my ( $release, $major, $minor ) = split /[._]/, $version;
+	# An odd major is development, so we make it the next production
+	$major % 2
+	    and do {
+	    $major++;
+	    $minor = 0;
+	};
+	$version = $minor > 0 ?
+	    sprintf '%d.%03d%03d', $release, $major, $minor :
+	    sprintf '%d.%03d', $release, $major;
+	$rslt .= sprintf "    %-${wid}s => '%s',\n", "'$category'", $version;
+    }
+    $rslt .= ");\n";
+
+    if ( $self->{update} ) {
+	confess 'TODO update lib/Perl/MinimumVersion.pm';
+    }
     return $rslt;
 }
 
@@ -428,6 +488,32 @@ reserves the right to alter or retract it at any time, and makes no
 commitment as to what will happen if it actually appears on the command
 line. B<You have been warned.>
 
+=head2 --format
+
+ --format minimum
+
+This option specifies the output format. The following formats are
+supported:
+
+=over
+
+=item C<minimum>
+
+This produces output appropriate for use in
+L<Perl::MinimumVersion|Perl::MinimumVersion>: a hash whose keys are the
+warnings categories and whose values are the Perl version that
+introduced each category. The L<--update|/--update> option is not
+supported with this format.
+
+=item C<warnings>
+
+This produces output appropriate for use in
+L<App::Warning::Diagnostics|App::Warning::Diagnostics>.
+
+=back
+
+The default is C<--format=warnings>.
+
 =head2 --help
 
 This option displays the documentation for this script. The script then
@@ -545,6 +631,38 @@ consolidated table.
 =item 7) Optionally update the code.
 
 =back
+
+=head1 METHODS
+
+If loaded as a modulino, this script provides class
+C<extract::warnings>. This class and its methods are B<private> to this
+distribution, and the details can change without notice. The following
+methods are provided.
+
+=head2 new
+
+ my $xw = extract::warnings->new();
+
+This static method instantiates the object. Attributes are provided as
+name/value pairs. All command options documented above are attributes.
+
+=head2 build_warnings_table
+
+ my $data = $xw->build_warnings_table( $data )
+
+This method reads the cached warnings table, updates it, re-writes the
+table if C<record> is true, and returns it.
+
+The argument is the output of
+L<read_warnings_cache()|/read_warnings_cache>. If not specified,
+C<read_warnings_cache()> will be called on your behalf to supply it.
+
+=head2 read_warnings_cache
+
+ my $data = $xw->read_warnings_cache()
+
+This method returns cached data from a previous run of this code. If
+there is none, nothing will be returned.
 
 =head1 AUTHOR
 
