@@ -16,7 +16,8 @@ unless ( caller ) {	# We're a modulino
     my %opt;
     GetOptions( \%opt,
 	qw{ age=i base_uri|base-uri|base-url=s cache=s
-	debug! format=s min_major|min-major=i update! verbose! },
+	de_novo|de-novo! debug! format=s min_major|min-major=i
+	update! verbose! },
 	help => sub { pod2usage( { -verbose => 2 } ) },
     ) or pod2usage( { -verbose => 0 } );
     my $xw = extract::warnings->new( %opt );
@@ -33,7 +34,7 @@ package extract::warnings;
 use Archive::Tar;
 use Carp;
 use HTML::TreeBuilder;
-use List::Util qw{ max };
+use List::Util qw{ max maxstr };
 use LWP::UserAgent;
 use PPI::Document;
 use Scalar::Util qw{ refaddr };
@@ -52,6 +53,7 @@ use constant REF_HASH	=> ref {};
 	    cache	=> $ENV{PERL_WARNING_DIAGNOSTICS_CACHE},
 	    debug	=> 0,
 	    format	=> 'warnings',
+	    de_novo	=> 0,
 	    min_major	=> 6,
 	    update	=> 0,
 	    verbose	=> 0,
@@ -83,6 +85,8 @@ sub warnings_cache_path {
 
 sub read_warnings_cache {
     my ( $self ) = @_;
+    $self->{de_novo}
+	and return;
     my $data_file = $self->warnings_cache_path();
     -e $data_file
 	or return;
@@ -93,9 +97,6 @@ sub write_warnings_cache {
     my ( $self, $data ) = @_;
     $data
 	or croak '$data not specified';
-    $data->{versions_added}
-	or return;
-    delete $data->{versions_added};
     my $data_file = $self->warnings_cache_path();
     YAML::DumpFile( $data_file, $data );
     return;
@@ -105,41 +106,39 @@ sub build_warnings_table {
     my ( $self, $data ) = @_;
     my $distro = $self->catalog_versions();
 
-    my $master_table = {};
-    my $analyzed = {};
-    if ( $data ||= $self->read_warnings_cache() ) {
-	$master_table = $data->{warnings};
-	$analyzed = { map { $_ => 1 } @{ $data->{versions} } };
-    }
+    $data ||= $self->read_warnings_cache() || {};
+    my $master_table = $data->{warnings} = {};
 
-    my $versions_added;
-    foreach my $key ( sort keys %{ $distro } ) {
-	$analyzed->{$key}
-	    and next;
-	$versions_added++;
-	my @files = 
-	    map { $_->{url} }
-	    sort { $b->{pref} <=> $a->{pref} }
-	    @{ $distro->{$key} };
-	my $path = $self->get_cached( { expire => 0, path => 1 }, @files );
-	$self->{verbose}
-	    and warn "$path\n";
-	my $warnings_table = $self->process_tar_file( $path );
+    foreach my $version ( sort keys %{ $distro } ) {
+	my $warnings_table;
+	if ( my $warnings_list = $data->{versions}{$version} ) {
+	    $warnings_table = { map { $_ => 1 } @{ $warnings_list } };
+	} else {
+	    my @files = 
+		map { $_->{url} }
+		sort { $b->{pref} <=> $a->{pref} }
+		@{ $distro->{$version} };
+	    my $path = $self->get_cached( { expire => 0, path => 1 }, @files );
+	    $self->{verbose}
+		and warn "$path\n";
+	    $warnings_table = $self->process_tar_file( $path );
+	    $data->{versions}{$version} = [ sort keys %{ $warnings_table } ];
+	}
 	foreach ( keys %{ $warnings_table } ) {
 	    defined $master_table->{$_}{introduced}
-		or $master_table->{$_}{introduced} = $key;
+		and next;
+	    $master_table->{$_}{introduced} = $version;
 	}
 	foreach ( keys %{ $master_table } ) {
 	    defined $warnings_table->{$_}
-		or $master_table->{$_}{removed} = $key
+		and next;
+	    defined $master_table->{$_}{removed}
+		and next;
+	    $master_table->{$_}{removed} = $version
 	}
     }
 
-    return {
-	versions	=> [ sort keys %{ $distro } ],
-	versions_added	=> $versions_added,
-	warnings	=> $master_table,
-    };
+    return $data;
 }
 
 {
@@ -247,6 +246,12 @@ sub build_warnings_table {
     }
 }
 
+sub max_version {
+    my ( $data ) = @_;
+    return version->parse(
+	maxstr( keys %{ $data->{versions} } ) )->normal();
+}
+
 sub format_output {
     my ( $self, $data ) = @_;
     goto $self->{_format};
@@ -255,13 +260,13 @@ sub format_output {
 sub _format_warnings {
     my ( $self, $data ) = @_;
     my $date = localtime->strftime( '%Y-%m-%d' );
-    my $version = version->parse( $data->{versions}[-1] )->normal();
+    my $max_version = max_version( $data );
     my $rslt = <<"EOD";
 ## BEGIN REPLACEMENT
 
 # The following code is replaced by tools/extract-warnings --update.
 # Do not edit.
-# Generated $date by Perl $^V, including Perls up to $version.
+# Generated $date by Perl $^V, including Perls up to $max_version.
 
 my \@possible_builtins = qw{
 EOD
@@ -302,10 +307,10 @@ EOD
 
 sub _format_minimum {
     my ( $self, $data ) = @_;
-    my $date = localtime->strftime( '%Y-%mPerennial	Ancho Chili Imperial Stout	Abraxas	10.5%-%d' );
-    my $version = version->parse( $data->{versions}[-1] )->normal();
+    my $date = localtime->strftime( '%Y-%m-%d' );
+    my $max_version = max_version( $data );
     my $rslt = <<"EOD";
-my \%warnings = ( # Generated $date, including Perls to $version
+my %warnings = ( # Generated $date, including Perls to $max_version
 EOD
     my $wid = max( map { length } keys %{ $data->{warnings} } ) + 2;
     foreach my $category ( sort keys %{ $data->{warnings} } ) {
@@ -318,6 +323,13 @@ EOD
 	    $major++;
 	    $minor = 0;
 	};
+	# Exclude a category if it was introduced and removed within the
+	# same development major version.
+	if ( my $removed = $data->{warnings}{$category}{removed} ) {
+	    my ( undef, $r_maj ) = split /[._]/, $removed;
+	    $r_maj < $major
+		and next;
+	}
 	$version = $minor > 0 ?
 	    sprintf '%d.%03d%03d', $release, $major, $minor :
 	    sprintf '%d.%03d', $release, $major;
@@ -401,7 +413,7 @@ sub process_tar_file {
 	$elem =~ m{ \A [^/]+ /lib/warnings\.pm \z }smx
 	    or next;
 	my $doc = PPI::Document->new( \$tar->get_content( $elem ) );
-	my $table = return find_warnings_table( $doc )
+	my $table = find_warnings_table( $doc )
 	    or croak "No warnings table found in $elem in $path";
 	return $table;
     }
@@ -480,6 +492,12 @@ has no tilde-expansion code; the example assumes expansion by the shell.
 The default is the value of environment variable
 C<PERL_WARNING_DIAGNOSTICS_CACHE>, which also needs tilde-expansion done
 on it B<before> this code sees it.
+
+=head2 --de-novo
+
+If this Boolean option is asserted, the cache of warnings categories by
+Perl verions is completely rebuilt from Perl distributions. If negated,
+ony the distributions for un-cached Perl versions are read.
 
 =head2 --debug
 
