@@ -15,7 +15,7 @@ my $old = $xw->read_warnings_cache();
 
 my $new = $xw->build_warnings_table();
 
-is $new->{warnings}, $old->{warnings}, 'Cacned warnings table did not change'
+is $new->{warnings}, $old->{_warnings}, 'Cacned warnings table did not change'
     or diag <<'EOD';
 
 The cached warnings table has changed. you may need to run

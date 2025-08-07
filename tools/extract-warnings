@@ -101,6 +101,9 @@ sub write_warnings_cache {
     $data
 	or croak '$data not specified';
     my $data_file = $self->warnings_cache_path();
+    $self->{development}
+	and local $data->{_warnings} = $data->{warnings};
+    delete local $data->{warnings};
     YAML::DumpFile( $data_file, $data );
     return;
 }
