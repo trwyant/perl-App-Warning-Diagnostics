@@ -1,0 +1,302 @@
+#!/usr/bin/env perl
+
+use 5.006;
+
+use strict;
+use warnings;
+
+use File::Find;
+use Getopt::Long 2.33 qw{ :config auto_version };
+use Pod::Usage;
+use PPI::Document;
+use Term::Table;
+use version;
+
+our $VERSION = '0.000_020';
+
+use constant PERL_5_0	=> '5.000000';
+use constant PERL_5_6	=> '5.006000';
+
+my %opt;
+
+GetOptions( \%opt,
+    qw{ blame! },
+    help => sub { pod2usage( { -verbose => 2 } ) },
+) and @ARGV or pod2usage( { -verbose => 0 } );
+
+my %warnings = ( # Generated 2025-08-06, including Perls to v5.43.1
+    'all'                                         => '5.006',
+    'ambiguous'                                   => '5.006',
+    'bareword'                                    => '5.006',
+    'chmod'                                       => '5.006',
+    'closed'                                      => '5.006',
+    'closure'                                     => '5.006',
+    'debugging'                                   => '5.006',
+    'deprecated'                                  => '5.006',
+    'deprecated::apostrophe_as_package_separator' => '5.038',
+    'deprecated::delimiter_will_be_paired'        => '5.038',
+    'deprecated::dot_in_inc'                      => '5.038',
+    'deprecated::goto_construct'                  => '5.038',
+    'deprecated::missing_import_called_with_args' => '5.040',
+    'deprecated::smartmatch'                      => '5.038',
+    'deprecated::subsequent_use_version'          => '5.040',
+    'deprecated::unicode_property_name'           => '5.038',
+    'deprecated::version_downgrade'               => '5.038',
+    'digit'                                       => '5.006',
+    'exec'                                        => '5.006',
+    'exiting'                                     => '5.006',
+    'experimental'                                => '5.018',
+    'experimental::alpha_assertions'              => '5.028',
+    'experimental::args_array_with_signatures'    => '5.036',
+    'experimental::autoderef'                     => '5.020',
+    'experimental::bitwise'                       => '5.022',
+    'experimental::builtin'                       => '5.036',
+    'experimental::class'                         => '5.038',
+    'experimental::const_attr'                    => '5.022',
+    'experimental::declared_refs'                 => '5.026',
+    'experimental::defer'                         => '5.036',
+    'experimental::extra_paired_delimiters'       => '5.036',
+    'experimental::for_list'                      => '5.036',
+    'experimental::isa'                           => '5.032',
+    'experimental::keyword_all'                   => '5.042',
+    'experimental::keyword_any'                   => '5.042',
+    'experimental::lexical_subs'                  => '5.018',
+    'experimental::lexical_topic'                 => '5.018',
+    'experimental::postderef'                     => '5.020',
+    'experimental::private_use'                   => '5.030',
+    'experimental::re_strict'                     => '5.022',
+    'experimental::refaliasing'                   => '5.022',
+    'experimental::regex_sets'                    => '5.018',
+    'experimental::script_run'                    => '5.028',
+    'experimental::signatures'                    => '5.020',
+    'experimental::smartmatch'                    => '5.018',
+    'experimental::try'                           => '5.034',
+    'experimental::uniprop_wildcards'             => '5.030',
+    'experimental::vlb'                           => '5.030',
+    'experimental::win32_perlio'                  => '5.022',
+    'glob'                                        => '5.006',
+    'illegalproto'                                => '5.012',
+    'imprecision'                                 => '5.012',
+    'inplace'                                     => '5.006',
+    'internal'                                    => '5.006',
+    'io'                                          => '5.006',
+    'layer'                                       => '5.008',
+    'locale'                                      => '5.022',
+    'malloc'                                      => '5.006',
+    'misc'                                        => '5.006',
+    'missing'                                     => '5.022',
+    'newline'                                     => '5.006',
+    'non_unicode'                                 => '5.014',
+    'nonchar'                                     => '5.014',
+    'numeric'                                     => '5.006',
+    'once'                                        => '5.006',
+    'overflow'                                    => '5.006',
+    'pack'                                        => '5.006',
+    'parenthesis'                                 => '5.006',
+    'pipe'                                        => '5.006',
+    'portable'                                    => '5.006',
+    'precedence'                                  => '5.006',
+    'printf'                                      => '5.006',
+    'prototype'                                   => '5.006',
+    'qw'                                          => '5.006',
+    'recursion'                                   => '5.006',
+    'redefine'                                    => '5.006',
+    'redundant'                                   => '5.022',
+    'regexp'                                      => '5.006',
+    'reserved'                                    => '5.006',
+    'scalar'                                      => '5.036',
+    'semicolon'                                   => '5.006',
+    'severe'                                      => '5.006',
+    'shadow'                                      => '5.028',
+    'signal'                                      => '5.006',
+    'substr'                                      => '5.006',
+    'surrogate'                                   => '5.014',
+    'syntax'                                      => '5.006',
+    'syscalls'                                    => '5.020',
+    'taint'                                       => '5.006',
+    'threads'                                     => '5.008',
+    'umask'                                       => '5.006',
+    'uninitialized'                               => '5.006',
+    'unopened'                                    => '5.006',
+    'unpack'                                      => '5.006',
+    'untie'                                       => '5.006',
+    'utf8'                                        => '5.006',
+    'void'                                        => '5.006',
+    'y2k'                                         => '5.006',
+);
+
+my %context = (
+    file_list	=> [],
+);
+
+find( \&process, @ARGV );
+
+my $min_syntax = render_version( $context{Version}, 'v5.4.0 (default)' );
+if ( $opt{blame} ) {
+    my $tbl = Term::Table->new(
+	collapse	=> 0,
+	rows	=> [
+	    map { [ $_, $context{$_} ] } qw{ File Line Char Rule Version }
+	],
+    );
+    my $len;
+    foreach ( $tbl->render() ) {
+	$len = length;
+	print "$_\n";
+    }
+    print "$context{Text}\n";
+    print '-' x $len, "\n";
+} else {
+    my $tbl = Term::Table->new(
+	collapse	=> 0,
+	header	=> [ qw{ file explicit syntax external } ],
+	rows	=> [
+	    map { [ $_->{File}, '~', render_version( $_->{Version} ), 'n/a' ] }
+		@{ $context{file_list} }
+	],
+    );
+    print "$_\n" for $tbl->render();
+    print "Minimum syntax version : $min_syntax\n";
+}
+
+sub blame {
+    my ( $elem, $perl_ver, $text ) = @_;
+    defined $perl_ver
+	or return;
+    update_version( $context{file_list}[-1], $perl_ver );
+    update_version( \%context, $perl_ver )
+	or return;
+    defined $text
+	or $text = $elem->content();
+    $context{File} = $File::Find::name;
+    $context{Rule} = '_warnings';
+    $context{Line} = $elem->line_number();
+    $context{Char} = $elem->column_number();
+    $context{Text} = $text;
+    return;
+}
+
+sub is_perl {
+    m/ [.] (?: (?i: pl ) | pm | t ) \z /smx
+	and return 1;
+    open my $fh, '<', $_
+	or return;
+    my $line = <$fh>;
+    close $fh;
+    defined $line
+	or return;
+    index( $line, '#!' )
+	and return;
+    return $line =~ m/perl/;
+}
+
+sub process {
+    is_perl()
+	or return;
+    my $doc = PPI::Document->new( $_ )
+	or return;
+    push @{ $context{file_list} }, {
+	File	=> $File::Find::name,
+    };
+    foreach my $incl ( @{ $doc->find( 'PPI::Statement::Include' ) || [] } ) {
+	{
+	    use	=> 1,
+	    no	=> 1,
+	}->{ $incl->type() }
+	    or next;
+	$incl->module() eq 'warnings'
+	    or next;
+	blame( $incl, PERL_5_6 );
+	foreach my $arg ( $incl->arguments() ) {
+	    if ( $arg->isa( 'PPI::Token::QuoteLike::Words' ) ) {
+		blame( $arg, $warnings{ $_ }, $_ ) for $arg->literal();
+	    } elsif ( $arg->isa( 'PPI::Token::Quote' ) ) {
+		blame( $arg, $warnings{ $arg->string() } );
+	    }
+	}
+    }
+    return;
+}
+
+sub render_version {
+    my ( $version, $default ) = @_;
+    defined $version
+	or return defined( $default ) ? $default : '~';
+    return version->parse( $version )->normal();
+}
+
+sub update_version {
+    my ( $entry, $perl_ver ) = @_;
+    defined $perl_ver
+	or return;
+    defined $entry->{Version}
+	and $perl_ver le $entry->{Version}
+	and return;
+    $entry->{Version} = $perl_ver;
+    return 1;
+}
+
+
+__END__
+
+=head1 TITLE
+
+perlver-warnings - Compute minimum Perl version based solely on arguments to C<use warnings>
+
+=head1 SYNOPSIS
+
+ perlver-warnings foo/bar.PL
+ perlver-warnings --help
+ perlver-warnings --version
+
+=head1 OPTIONS
+
+=head2 --blame
+
+If this Boolean option is asserted, the output shows the location and
+text of the code that determined the minimum version, and the rule that
+was applied to determine that minimum.
+
+The default is C<--no-blame>.
+
+=head2 --help
+
+This option displays the documentation for this script. The script then
+exits.
+
+=head2 --version
+
+This option displays the version of this script. The script then exits.
+
+=head1 DETAILS
+
+This Perl script scans one or more Perl files and displays the minimum
+version of Perl required to execute the C<use warnings> or
+C<no warnings> statements in it.
+
+The output is somewhat compatible with that of the C<perlver> script
+that comes with L<Perl::MinimumVersion|Perl::MinimumVersion>, and its
+operation is more or less combatable with that script.
+
+Unlike f<perlver>, which only takes one file or directory, this script
+takes multiple files and/or directories.
+
+=head1 AUTHOR
+
+Thomas R. Wyant, III F<wyant at cpan dot org>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2025 by Thomas R. Wyant, III
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl 5.10.0. For more details, see the full text
+of the licenses in the directory LICENSES.
+
+This program is distributed in the hope that it will be useful, but
+without any warranty; without even the implied warranty of
+merchantability or fitness for a particular purpose.
+
+=cut
+
+# ex: set textwidth=72 :
