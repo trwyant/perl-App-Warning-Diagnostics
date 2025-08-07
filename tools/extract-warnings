@@ -16,8 +16,8 @@ unless ( caller ) {	# We're a modulino
     my %opt;
     GetOptions( \%opt,
 	qw{ age=i base_uri|base-uri|base-url=s cache=s
-	de_novo|de-novo! debug! format=s min_major|min-major=i
-	update! verbose! },
+	de_novo|de-novo! debug! development! format=s
+	min_major|min-major=i update! verbose! },
 	help => sub { pod2usage( { -verbose => 2 } ) },
     ) or pod2usage( { -verbose => 0 } );
     my $xw = extract::warnings->new( %opt );
@@ -52,6 +52,7 @@ use constant REF_HASH	=> ref {};
 	    base_uri	=> 'http://www.cpan.org/src/5.0',
 	    cache	=> $ENV{PERL_WARNING_DIAGNOSTICS_CACHE},
 	    debug	=> 0,
+	    development	=> undef,
 	    format	=> 'warnings',
 	    de_novo	=> 0,
 	    min_major	=> 6,
@@ -74,6 +75,8 @@ use constant REF_HASH	=> ref {};
 	    and $arg{min_major} = 6;
 	$arg{_format} = __PACKAGE__->can( "_format_$arg{format}" )
 	    or croak "Unknown format '$arg{format}'";
+	defined $arg{development}
+	    or $arg{development} = $arg{_format}->( 'development' );
 	return bless \%arg, $class;
     }
 }
@@ -110,6 +113,10 @@ sub build_warnings_table {
     my $master_table = $data->{warnings} = {};
 
     foreach my $version ( sort keys %{ $distro } ) {
+	my ( undef, $major ) = split /[._]/, $version;
+	$major % 2
+	    and not $self->{development}
+	    and next;
 	my $warnings_table;
 	if ( my $warnings_list = $data->{versions}{$version} ) {
 	    $warnings_table = { map { $_ => 1 } @{ $warnings_list } };
@@ -137,6 +144,8 @@ sub build_warnings_table {
 	    $master_table->{$_}{removed} = $version
 	}
     }
+
+    $data->{max_version} = maxstr( keys %{ $data->{versions} } );
 
     return $data;
 }
@@ -248,8 +257,7 @@ sub build_warnings_table {
 
 sub max_version {
     my ( $data ) = @_;
-    return version->parse(
-	maxstr( keys %{ $data->{versions} } ) )->normal();
+    return version->parse( $data->{max_version} )->normal();
 }
 
 sub format_output {
@@ -259,6 +267,10 @@ sub format_output {
 
 sub _format_warnings {
     my ( $self, $data ) = @_;
+    ref $self	# If invocant is not ref, it asks for default option value
+	or return {
+	development	=> 1,
+    }->{$self};
     my $date = localtime->strftime( '%Y-%m-%d' );
     my $max_version = max_version( $data );
     my $rslt = <<"EOD";
@@ -307,6 +319,10 @@ EOD
 
 sub _format_minimum {
     my ( $self, $data ) = @_;
+    ref $self	# If invocant is not ref, it asks for default option value
+	or return {
+	development	=> 0,
+    }->{$self};
     my $date = localtime->strftime( '%Y-%m-%d' );
     my $max_version = max_version( $data );
     my $rslt = <<"EOD";
@@ -317,19 +333,6 @@ EOD
 	my $version = $data->{warnings}{$category}{introduced};
 	# Perl versions are release.major.minor.
 	my ( $release, $major, $minor ) = split /[._]/, $version;
-	# An odd major is development, so we make it the next production
-	$major % 2
-	    and do {
-	    $major++;
-	    $minor = 0;
-	};
-	# Exclude a category if it was introduced and removed within the
-	# same development major version.
-	if ( my $removed = $data->{warnings}{$category}{removed} ) {
-	    my ( undef, $r_maj ) = split /[._]/, $removed;
-	    $r_maj < $major
-		and next;
-	}
 	$version = $minor > 0 ?
 	    sprintf '%d.%03d%03d', $release, $major, $minor :
 	    sprintf '%d.%03d', $release, $major;
@@ -506,6 +509,14 @@ reserves the right to alter or retract it at any time, and makes no
 commitment as to what will happen if it actually appears on the command
 line. B<You have been warned.>
 
+=head2 --development
+
+This Boolean option determines the formatting of development versions of
+Perl. If asserted, they are handled on an equal footing to production
+versions. If false, they are ignored.
+
+The default depends on the value of the L<--format|/--format> option.
+
 =head2 --format
 
  --format minimum
@@ -523,10 +534,16 @@ warnings categories and whose values are the Perl version that
 introduced each category. The L<--update|/--update> option is not
 supported with this format.
 
+This option causes L<--development|/--development> to be asserted by
+default.
+
 =item C<warnings>
 
 This produces output appropriate for use in
 L<App::Warning::Diagnostics|App::Warning::Diagnostics>.
+
+This option causes L<--development|/--development> to be negated by
+default.
 
 =back
 
