@@ -14,7 +14,7 @@ our $VERSION = '0.000_020';
 my %opt;
 
 GetOptions( \%opt,
-    qw{ primitive! },
+    qw{ missing! primitive! },
     help => sub { pod2usage( { -verbose => 2 } ) },
 ) or pod2usage( { -verbose => 0 } );
 
@@ -26,7 +26,10 @@ foreach my $category ( @ARGV ) {
 	or 1 == unpack '%32b*', $warnings::Bits{$category}
 	or next;
     my $count =()= warning_diagnostics( $category );
-    say "$category\t$count";
+    $opt{missing}
+	and $count
+	and next;
+    print "$category\t$count\n";
 }
 
 __END__
@@ -48,6 +51,11 @@ count-diagnostics - Count the diagnostics associated with each warning category
 
 This option displays the documentation for this script. The script then
 exits.
+
+=head2 --missing
+
+If this Boolean option is true, only categories that have no diagnostics
+are included in the output.
 
 =head2 --primitive
 
