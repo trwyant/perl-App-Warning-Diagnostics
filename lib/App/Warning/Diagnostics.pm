@@ -451,12 +451,11 @@ sub __read_pod {
 	    m/ \A =encoding \s+ ( \S+ ) /smx &&
 	    "$]" >= 5.008
 	) {
-	    $diagnostic = $raw_pod = undef;
+	    my $pos = tell $fh;
 	    $encoding = $1;
-	    seek $fh, 0, 0;
-	    $pod_handler = $ignore_pod;
 	    binmode $fh, ":encoding($encoding)"
 		or carp "Failed to set input encoding to $encoding: $!";
+	    seek $fh, $pos, 0;
 	} elsif ( m/ \A = /smx ) {
 	    $pod_handler = $ignore_pod;
 	} else {
