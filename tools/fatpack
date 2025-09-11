@@ -17,9 +17,9 @@ GetOptions( \%opt,
     help => sub { pod2usage( { -verbose => 2 } ) },
 ) or pod2usage( { -verbose => 0 } );
 
-my $out_file = @ARGV ? $ARGV[0] : 'perl-warning-diagnostics-fatpack';
+my $out_file = @ARGV ? $ARGV[0] : 'app-warning-diagnostics-fatpack';
 
-my $script = slurp( 'script/perl-warning-diagnostics' );
+my $script = slurp( 'script/app-warning-diagnostics' );
 
 my $module = slurp( 'lib/App/Warning/Diagnostics.pm' );
 

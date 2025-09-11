@@ -119,14 +119,14 @@ __END__
 
 =head1 TITLE
 
-perl-warning-diagnostics - List diagnostics enabled by specified warning categories
+app-warning-diagnostics - List diagnostics enabled by specified warning categories
 
 =head1 SYNOPSIS
 
- perl-warning-diagnostics uninitialized
- perl-warning-diagnostics io no-unopened no-closed
- perl-warning-diagnostics --help
- perl-warning-diagnostics --version
+ app-warning-diagnostics uninitialized
+ app-warning-diagnostics io no-unopened no-closed
+ app-warning-diagnostics --help
+ app-warning-diagnostics --version
 
 =head1 OPTIONS
 
@@ -155,30 +155,30 @@ style. Valid styles are:
 
 Bash completion. This is set up in F<.bashrc> as
 
- complete -o nospace -C 'perl-warning-diagnostics --complete bash' \
-     script/perl-warning-diagnostics
+ complete -o nospace -C 'app-warning-diagnostics --complete bash' \
+     script/app-warning-diagnostics
 
 =item zsh_bash
 
 Zsh emulation of Bash completion. This is set up in F<bashcompinit> as
 
- complete -C 'perl-warning-diagnostics --complete zsh_bash' \
-     perl-warning-diagnostics
+ complete -C 'app-warning-diagnostics --complete zsh_bash' \
+     app-warning-diagnostics
 
 =back
 
 For completion under Bash specify
 
  complete \
-   -C 'perl-warning-diagnostics --complete bash' \
-   perl-warning-diagnostics
+   -C 'app-warning-diagnostics --complete bash' \
+   app-warning-diagnostics
 
 in F<~/.bashrc>. For completion under zsh Bash completion emulation
 specify
 
  complete \
-   -C 'perl-warning-diagnostics --complete zsh_bash' \
-   perl-warning-diagnostics
+   -C 'app-warning-diagnostics --complete zsh_bash' \
+   app-warning-diagnostics
 
 in F<~/.zshrc>.
 
