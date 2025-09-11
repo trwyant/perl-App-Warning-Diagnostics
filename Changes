@@ -1,3 +1,42 @@
+0.000_021	2025-09-11	T. R. Wyant
+    Rename script to app-warning-diagnostics
+
+    Update for 5.43.2 (no warnings changes).
+
+    Don't reprocess POD on encountering =encoding. My justification for
+    this is that if =encoding got recognized at all, the read must have
+    been good. I do do a tell() and seek() around the binmode(), out of
+    pure paranoia.
+
+    Fix syntax error in eg/count-diagnostics.
+
+    Add eg/count-diagnostics option --missing, to restrict output to
+    categories without diagnostics.
+
+    Only update warnings cache under --development This is because if
+    that is false, tools/extract-warnings ignores development versions
+    of Perl, this redacted warnings table gets cached, and
+    xt/author/need_update.t fails.
+
+    Add eg/perlver-warnings This determines the minimum Perl version
+    based ONLY on the uses of 'use warnings'.
+
+    Add tools/extract-warnings option --development. This determines the
+    handling of development versions of Perl.
+
+    Various fixes to tools/extract-warnings
+
+    Add --de-novo to completely re-build the cache.
+
+    Restructure the logic (and the cache) to allow adding Perl versions
+    other than at the end.
+
+    Correct detection of removal version. Old code kept updating it once it
+    had been determined, so it ended up set to the highest Perl version.
+
+    Correct generation of Perl::MinimumVersion table to exclude warnings
+    that were introduced and removed in the same development major version.
+
 0.000_020	2025-07-23	T. R. Wyant
     This eelease changes the way the canned warning table is generated.
     Instead of scavenging the current warnings.pm only, all warnings.pm
