@@ -48,7 +48,7 @@ my %builtin;	# All builtin warnings (a guess)
 
 # The following code is replaced by tools/extract-warnings --update.
 # Do not edit.
-# Generated 2025-08-21 by Perl v5.42.0, including Perls up to v5.43.2.
+# Generated 2025-11-21 by Perl v5.42.0, including Perls up to v5.43.5.
 
 my @possible_builtins = qw{
     all
@@ -98,6 +98,7 @@ my @possible_builtins = qw{
     experimental::refaliasing
     experimental::regex_sets
     experimental::script_run
+    experimental::signature_named_parameters
     experimental::signatures
     experimental::smartmatch
     experimental::try
