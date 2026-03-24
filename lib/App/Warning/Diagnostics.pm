@@ -48,7 +48,7 @@ my %builtin;	# All builtin warnings (a guess)
 
 # The following code is replaced by tools/extract-warnings --update.
 # Do not edit.
-# Generated 2026-02-27 by Perl v5.42.0, including Perls up to v5.43.8.
+# Generated 2026-03-23 by Perl v5.42.1, including Perls up to v5.43.9.
 
 my @possible_builtins = qw{
     all
@@ -85,6 +85,7 @@ my @possible_builtins = qw{
     experimental::const_attr
     experimental::declared_refs
     experimental::defer
+    experimental::enhanced_xx
     experimental::extra_paired_delimiters
     experimental::for_list
     experimental::isa
