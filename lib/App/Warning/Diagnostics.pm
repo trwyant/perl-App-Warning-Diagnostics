@@ -48,7 +48,7 @@ my %builtin;	# All builtin warnings (a guess)
 
 # The following code is replaced by tools/extract-warnings --update.
 # Do not edit.
-# Generated 2026-01-10 by Perl v5.42.0, including Perls up to v5.43.6.
+# Generated 2026-02-27 by Perl v5.42.0, including Perls up to v5.43.8.
 
 my @possible_builtins = qw{
     all
@@ -118,6 +118,7 @@ my @possible_builtins = qw{
     malloc
     misc
     missing
+    missing_import
     newline
     non_unicode
     nonchar
