@@ -1,3 +1,27 @@
+0.000_022	2026-06-16	T. R. Wyant
+    Remove references to the RT bug tracking system.
+
+    Replace wyant@cpan.org with harryfmudd@comcast.net.
+
+    Repackage licenses so that GitHub can find them (maybe).
+    Thanks to Mikko Koivunalho (specifically his blog post
+    https://blogs.perl.org/users/mikko_koivunalho/2025/11/github-and-the-perl-license.html
+    for the how-to.
+
+    Add SECURITY policy.
+
+    Add CONTRIBUTING policy.
+
+    Update for Perl 5.43.10.
+
+    Update for Perl 5.43.9.
+
+    Update for Perl 5.43.8
+
+    Update for Perl 5.43.6.
+
+    Add experimental::signature_named_parameters
+
 0.000_021	2025-09-11	T. R. Wyant
     Rename script to app-warning-diagnostics
 

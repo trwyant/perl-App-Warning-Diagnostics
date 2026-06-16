@@ -12,7 +12,7 @@ use PPI::Document;
 use Term::Table;
 use version;
 
-our $VERSION = '0.000_021';
+our $VERSION = '0.000_022';
 
 use constant PERL_5_0	=> '5.000000';
 use constant PERL_5_6	=> '5.006000';
