@@ -14,6 +14,7 @@ META.json
 META.yml
 README
 script/app-warning-diagnostics
+SECURITY
 t/basic.t
 t/complete.t
 t/data/perldiag.pod
