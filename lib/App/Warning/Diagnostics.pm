@@ -199,7 +199,6 @@ foreach ( @possible_builtins ) {
     }
 }
 
-
 sub builtins {
     return keys %builtin;
 }
@@ -711,8 +710,7 @@ L<diagnostics|diagnostics>
 =head1 SUPPORT
 
 Support is by the author. Please file bug reports at
-L<https://rt.cpan.org/Public/Dist/Display.html?Name=App-Warning-Diagnostics>,
-L<https://github.com/trwyant/perl-App-Warning-Diagnostics/issues/>, or in
+L<https://github.com/trwyant/perl-App-Warning-Diagnostics/issues> or in
 electronic mail to the author.
 
 =head1 AUTHOR
