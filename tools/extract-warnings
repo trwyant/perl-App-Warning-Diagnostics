@@ -277,8 +277,6 @@ sub _format_warnings {
     my $date = localtime->strftime( '%Y-%m-%d' );
     my $max_version = max_version( $data );
     my $rslt = <<"EOD";
-## BEGIN REPLACEMENT
-
 # The following code is replaced by tools/extract-warnings --update.
 # Do not edit.
 # Generated $date by Perl $^V, including Perls up to $max_version.
@@ -291,11 +289,22 @@ EOD
     }
     $rslt .= <<'EOD';
 };
-
-## END REPLACEMENT
 EOD
     if ( $self->{update} ) {
-	my $file = 'lib/App/Warning/Diagnostics.pm';
+	{
+	    local @INC = @INC;
+	    require lib;
+	    lib->import( 'tools' );
+	    require My::Updater;
+	}
+	my $upd = My::Updater->new(
+	    file	=> 'lib/app/warning/diagnostics.pm',
+	);
+	$upd->update( builtins	=> $rslt );
+
+=begin comment
+
+	my $file = 'lib/app/warning/diagnostics.pm';
 	local $/ = undef;	# Slurp mode
 	open my $fh, '<', $file
 	    or die "Unable to open $file for input: $!\n";
@@ -316,6 +325,11 @@ EOD
 	    or die "Unable to open $file for output: $!\n";
 	print { $fh } $source;
 	close $fh;
+
+=end comment
+
+=cut
+
     }
     return $rslt;
 }

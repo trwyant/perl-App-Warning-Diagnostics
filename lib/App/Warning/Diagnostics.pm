@@ -44,11 +44,11 @@ my %builtin;	# All builtin warnings (a guess)
 # that the addition of a warning category requires re-release of this
 # module. Sigh.
 
-## BEGIN REPLACEMENT
+# $$ BEGIN builtins
 
 # The following code is replaced by tools/extract-warnings --update.
 # Do not edit.
-# Generated 2026-03-23 by Perl v5.42.1, including Perls up to v5.43.9.
+# Generated 2026-06-16 by Perl v5.42.2, including Perls up to v5.43.10.
 
 my @possible_builtins = qw{
     all
@@ -161,7 +161,7 @@ my @possible_builtins = qw{
     y2k
 };
 
-## END REPLACEMENT
+# $$ END
 
 # The reason for going through this loop is that we may be running under
 # an earlier version of Perl than the one that generated the above, so
