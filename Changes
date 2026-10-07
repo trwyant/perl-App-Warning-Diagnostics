@@ -1,3 +1,12 @@
+0.000_023	2026-10-07	T. R. Wyant
+    Correct Makefile.PL EUMM version accommodations.
+
+    Add explicit release_status to metadata.
+
+    Update to Perl v5.45.3 (experimental::equ).
+
+    Update to Perl 5.45.1.
+
 0.000_022	2026-06-16	T. R. Wyant
     Remove references to the RT bug tracking system.
 
